@@ -1,4 +1,4 @@
-/* global requirejs, _, bowser */
+/* global boot, _, bowser */
 
 // Stratus Layer Prototype
 // -----------------------
@@ -46,12 +46,8 @@ let Stratus = {
   Select: null,
 
   /* Boot */
-  BaseUrl: (requirejs && _.has(requirejs.s.contexts._, 'config')
-    ? requirejs.s.contexts._.config.baseUrl
-    : null) || '/',
-  BundlePath: (requirejs && _.has(requirejs.s.contexts._, 'config')
-    ? requirejs.s.contexts._.config.bundlePath
-    : '') || '',
+  BaseUrl: (boot && _.has(boot, 'configuration') ? boot.configuration.baseUrl : null) || '/',
+  BundlePath: (boot && _.has(boot, 'configuration') ? boot.configuration.bundlePath : '') || '',
 
   /* This is used internally for triggering events */
   Events: null,
@@ -77,6 +73,7 @@ let Stratus = {
   /* Stratus */
   CSS: {},
   Chronos: null,
+  Data: {},
   Environment: {
     ip: null,
     production: !(typeof document.cookie === 'string' &&
@@ -136,11 +133,6 @@ let Stratus = {
       require: ['angular', 'angular-chart'],
       module: true,
       suffix: '.js'
-    },
-    sortable: {
-      selector: '[ng-sortable]',
-      require: ['angular-sortable'],
-      module: 'ng-sortable'
     },
 
     // TODO: Move Froala to Sitetheory since it is specific to Sitetheory

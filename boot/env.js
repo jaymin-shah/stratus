@@ -1,8 +1,6 @@
 // Environment
 // -----------
 
-/* global cacheTime, config */
-
 (function (root) {
   // To be or not to be...
   const hamlet = root.hamlet = {}
@@ -23,7 +21,7 @@
 
   // Backward Compatibility
   if (!hamlet.isUndefined('cacheTime')) {
-    boot.cacheTime = cacheTime
+    boot.cacheTime = root.cacheTime
   }
 
   // Environment
@@ -51,10 +49,22 @@
       return destination
     }
     for (let key in source) {
-      if (source.hasOwnProperty(key)) {
-        destination[key] = (typeof destination[key] === 'object') ? boot.merge(
-          destination[key], source[key]) : source[key]
+      if (!source.hasOwnProperty(key)) {
+        continue
       }
+      if (Array.isArray(destination[key])) {
+        if (!Array.isArray(source[key])) {
+          console.warn('boot:', key, 'is not an array in all configurations.')
+          continue
+        }
+        destination[key] = destination[key].concat(source[key])
+        continue
+      }
+      if (typeof destination[key] === 'object' && destination[key]) {
+        destination[key] = boot.merge(destination[key], source[key])
+        continue
+      }
+      destination[key] = source[key]
     }
     return destination
   }
@@ -80,9 +90,60 @@
 
   // Initialization
   if (!hamlet.isUndefined('config')) {
-    let localConfig = typeof config === 'function' ? config(boot) : config
+    let localConfig = typeof root.config === 'function' ? root.config(boot) : root.config
     if (typeof localConfig === 'object' && localConfig) {
       boot.config(localConfig)
+    }
+  }
+
+  // Chain Require for Backwards Compatibility
+  if (typeof root.require !== 'function') {
+    root.require = function (requirements, callback) {
+      /* *
+      const require = root.requirejs
+      if (typeof require === 'function') {
+        return require(requirements, callback)
+      }
+      /* */
+      const System = root.System
+      if (typeof System === 'undefined') {
+        return
+      }
+      const tracker = {
+        loaded: 0,
+        total: requirements.length,
+        modules: {}
+      }
+      const shim = boot.configuration.shim || {}
+      const load = function (requirement) {
+        return System.import(requirement.replace(/(\.js)$/, ''))
+          .then(function (module) {
+            const wrap = shim[requirement] || {}
+            tracker.modules[requirement] = wrap.exports ? root[wrap.exports] : module
+            if (++tracker.loaded !== tracker.total) {
+              return
+            }
+            if (typeof callback !== 'function') {
+              return
+            }
+            callback.apply(root, requirements.map(function (key) {
+              return tracker.modules[key]
+            }))
+          })
+          .catch(function (error) {
+            console.error(error)
+          })
+      }
+      requirements.forEach(function (requirement) {
+        const wrap = shim[requirement] || {}
+        if (wrap.deps) {
+          root.require(wrap.deps, function () {
+            load(requirement)
+          })
+          return
+        }
+        load(requirement)
+      })
     }
   }
 })(this)

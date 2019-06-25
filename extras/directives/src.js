@@ -6,18 +6,24 @@
 // Define AMD, Require.js, or Contextual Scope
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
-    define(['stratus', 'underscore', 'jquery', 'angular'], factory)
+    define([
+      'stratus',
+      'underscore',
+      'jquery',
+      'angular'
+    ], factory)
   } else {
-    factory(root.Stratus, root._, root.$, root.angular)
+    factory(root.Stratus, root._, root.jQuery, root.angular)
   }
-}(this, function (Stratus, _, $, angular) {
+}(this, function (Stratus, _, jQuery, angular) {
   // This directive intends to handle binding of a dynamic variable to
   Stratus.Directives.Src = function ($parse, $interpolate) {
     return {
       restrict: 'A',
       scope: {
         src: '@src',
-        stratusSrc: '@stratusSrc'
+        stratusSrc: '@stratusSrc',
+        style: '@style'
       },
       link: function ($scope, $element, $attr) {
         Stratus.Instances[_.uniqueId('src_')] = $scope
@@ -79,10 +85,12 @@
           $element.attr('data-src', src)
 
           // FIXME: This needs to be converted to the new event structure.
+          // TODO: this also needs to listen for if the src or stratus-src changes, so it retriggers, e.g. in a reusable popup where the contents change.
+          // TODO: this also needs to work in popups that may not be trigger "onScroll" or "onScreen" because they are outside the flow of the page (usually at the bottom of the page out of view, but in the window with an absolute position)
           $scope.group = {
             method: Stratus.Internals.LoadImage,
             el: $element,
-            spy: $element.data('spy') ? $($element.data('spy')) : $element
+            spy: $element.data('spy') ? jQuery($element.data('spy')) : $element
           }
           Stratus.Internals.OnScroll()
           Stratus.RegisterGroup.add('OnScroll', $scope.group)

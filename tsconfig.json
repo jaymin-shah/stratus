@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "es6",
+    "module": "system",
+    "moduleResolution": "node",
+    "noImplicitAny": true,
+    "removeComments": true,
+    "preserveConstEnums": true,
+    "sourceMap": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "esModuleInterop": true,
+    "baseUrl": "",
+    "paths": {
+      "*": [
+        "node_modules/*"
+      ],
+      "@stratus/*": [ "src/*" ],
+      "stratus": [
+        "dist/stratus"
+      ],
+      "stratus.services.*": [
+        "stratus/services/*"
+      ],
+      "core-js/es7/reflect": [
+        "node_modules/core-js/proposals/reflect-metadata"
+      ]
+    }
+  },
+  "exclude": [
+    "node_modules"
+  ]
+}

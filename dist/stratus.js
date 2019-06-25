@@ -10,19 +10,19 @@
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     define([
-      'text',
+      'exports',
       'underscore',
       'jquery', // TODO: Remove once phased out appropriately
       'bowser'
-    ], function (text, _, jQuery, bowser) {
-      return (root.Stratus = factory(text, _, jQuery, bowser))
+    ], function (exports, _, jQuery, bowser) {
+      return (root.Stratus = factory(exports, _, jQuery, bowser))
     })
   } else {
-    root.Stratus = factory(root.text, root._, root.jQuery, root.bowser)
+    root.Stratus = factory(root.exports, root._, root.jQuery, root.bowser)
   }
-}(this, function (text, _, jQuery, bowser) {
+}(this, function (exports, _, jQuery, bowser) {
 
-/* global requirejs, _, bowser */
+/* global boot, _, bowser */
 
 // Stratus Layer Prototype
 // -----------------------
@@ -70,12 +70,8 @@ let Stratus = {
   Select: null,
 
   /* Boot */
-  BaseUrl: (requirejs && _.has(requirejs.s.contexts._, 'config')
-    ? requirejs.s.contexts._.config.baseUrl
-    : null) || '/',
-  BundlePath: (requirejs && _.has(requirejs.s.contexts._, 'config')
-    ? requirejs.s.contexts._.config.bundlePath
-    : '') || '',
+  BaseUrl: (boot && _.has(boot, 'configuration') ? boot.configuration.baseUrl : null) || '/',
+  BundlePath: (boot && _.has(boot, 'configuration') ? boot.configuration.bundlePath : '') || '',
 
   /* This is used internally for triggering events */
   Events: null,
@@ -101,6 +97,7 @@ let Stratus = {
   /* Stratus */
   CSS: {},
   Chronos: null,
+  Data: {},
   Environment: {
     ip: null,
     production: !(typeof document.cookie === 'string' &&
@@ -160,11 +157,6 @@ let Stratus = {
       require: ['angular', 'angular-chart'],
       module: true,
       suffix: '.js'
-    },
-    sortable: {
-      selector: '[ng-sortable]',
-      require: ['angular-sortable'],
-      module: 'ng-sortable'
     },
 
     // TODO: Move Froala to Sitetheory since it is specific to Sitetheory
@@ -1199,13 +1191,21 @@ Stratus.Prototypes.Model = class Model extends Stratus.Prototypes.EventManager {
    * @returns {*}
    */
   remove (attr, value) {
+    // Note:
+    // This needs to tree build into dot notation strings
+    // then delete the keys for the values or remove an
+    // element from an array.
+
+    // console.log('remove:', attr, value === undefined ? 'straight' : 'element')
     if (value === undefined) {
+      // FIXME: This needs to remove the dot notation references
       // delete this.data[attr];
     } else {
       // TODO: use dot notation for nested removal or _.without for array
       // values (these should be separate functions)
       this.data[attr] = _.without(this.data[attr], value)
     }
+    // console.log('removed:', this.data[attr])
     return this.data[attr]
   }
 
@@ -1386,7 +1386,7 @@ Stratus.Prototypes.Toast = class Toast {
  * @param request
  * @constructor
  */
-Stratus.Internals.Ajax = function (request) {
+Stratus.Internals.XHR = function (request) {
   // Defaults
   this.method = 'GET'
   this.url = '/Api'
@@ -1639,7 +1639,7 @@ Stratus.Internals.Convoy = function (convoy, query) {
         }
       })
     } else {
-      Stratus.Internals.Ajax({
+      Stratus.Internals.XHR({
         method: 'POST',
         url: '/Api' + encodeURIComponent(query || ''),
         data: {
@@ -2324,7 +2324,7 @@ Stratus.Internals.TrackLocation = function () {
         console.error('Stratus Location:', error)
       })
     } else {
-      Stratus.Internals.Ajax({
+      Stratus.Internals.XHR({
         url: 'https://ipapi.co/' + Stratus.Environment.get('ip') + '/json/',
         success: function (data) {
           if (!data) {
@@ -2368,7 +2368,7 @@ Stratus.Internals.UpdateEnvironment = function (request) {
   if (typeof request === 'object' && Object.keys(request).length) {
     // TODO: Create a better URL, switching between relative APIs based on
     // environment
-    Stratus.Internals.Ajax({
+    Stratus.Internals.XHR({
       method: 'PUT',
       url: '/Api/Session', // auth.sitetheory.io
       data: request,
@@ -2656,7 +2656,7 @@ Stratus.Selector.parent = function () {
   return Stratus(that.selection.parentNode)
 }
 
-/* global Stratus, _, $, angular, boot, requirejs */
+/* global Stratus, _, $, angular, boot */
 
 /**
  * @constructor
@@ -2693,7 +2693,7 @@ Stratus.Loaders.Angular = function () {
       // sanitize roster fields without selector attribute
       if (_.isUndefined(element.selector) && element.namespace) {
         element.selector = _.filter(
-          _.map(requirejs.s.contexts._.config.paths, function (path, key) {
+          _.map(boot.configuration.paths, function (path, key) {
             // if (_.isString(key)) console.log(key.match(/([a-zA-Z]+)/g));
             return _.startsWith(key, element.namespace) ? (element.type === 'attribute' ? '[' : '') + _.camelToKebab(key.replace(element.namespace, 'stratus-')) + (element.type === 'attribute' ? ']' : '') : null
           })
@@ -2709,7 +2709,7 @@ Stratus.Loaders.Angular = function () {
           if (nodes.length) {
             let name = selector.replace(/^\[/, '').replace(/]$/, '')
             requirement = element.namespace + _.lcfirst(_.kebabToCamel(name.replace(/^stratus/, '').replace(/^ng/, '')))
-            if (_.has(requirejs.s.contexts._.config.paths, requirement)) {
+            if (_.has(boot.configuration.paths, requirement)) {
               injection = {
                 requirement: requirement
               }
@@ -2725,12 +2725,12 @@ Stratus.Loaders.Angular = function () {
         element.length = nodes.length
         if (nodes.length) {
           let attribute = element.selector.replace(/^\[/, '').replace(/]$/, '')
-          if (element.namespace) {
+          if (attribute && element.namespace) {
             _.each(nodes, function (node) {
               let name = node.getAttribute(attribute)
               if (name) {
                 requirement = element.namespace + _.lcfirst(_.kebabToCamel(name.replace('Stratus', '')))
-                if (_.has(requirejs.s.contexts._.config.paths, requirement)) {
+                if (_.has(boot.configuration.paths, requirement)) {
                   injector({
                     requirement: requirement
                   })
@@ -2755,7 +2755,6 @@ Stratus.Loaders.Angular = function () {
   })
 
   // Ensure Modules enabled are in the requirements
-  // TODO: store the require config in a stratus key: requirejs.s.contexts._.config
   container.requirement.push('angular-material')
   _.each(container, function (element, key) {
     container[key] = _.uniq(element)
@@ -2800,11 +2799,13 @@ Stratus.Loaders.Angular = function () {
     /* */
 
     // We are currently forcing all filters to load because we don't have a selector to find them on the DOM, yet.
-    Object.keys(requirejs.s.contexts._.config.paths).filter(function (path) {
+    Object.keys(boot.configuration.paths).filter(function (path) {
       return _.startsWith(path, 'stratus.filters.')
     }).forEach(function (requirement) {
       container.requirement.push(requirement)
     })
+
+    // console.log('requirements:', container.requirement)
 
     require(container.requirement, function () {
       // App Reference
@@ -2857,7 +2858,7 @@ Stratus.Loaders.Angular = function () {
             tabMode: 'space',
             tabSize: 4
           },
-          fileUploadURL: 'https://app002.sitetheory.io:3000/?session=' + _.cookie('SITETHEORY'),
+          fileUploadURL: 'https://app.sitetheory.io:3000/?session=' + _.cookie('SITETHEORY'),
           htmlAllowedAttrs: ['.*'],
           htmlAllowedEmptyTags: [
             'textarea', 'a', '.fa',
@@ -2917,27 +2918,27 @@ Stratus.Loaders.Angular = function () {
       })
       if (!_.contains(cssLoaded, 'angular-material.css')) {
         css.push(
-          Stratus.BaseUrl + Stratus.BundlePath + 'bower_components/angular-material/angular-material' + (Stratus.Environment.get('production') ? '.min' : '') + '.css'
+          Stratus.BaseUrl + Stratus.BundlePath + 'node_modules/angular-material/angular-material' + (Stratus.Environment.get('production') ? '.min' : '') + '.css'
         )
       }
-      if (Stratus('[froala]').length || Stratus.Directives.Froala) {
+      if (Stratus.Directives.Froala || Stratus('[froala]').length) {
         [
           // FIXME this is sitetheory only
           Stratus.BaseUrl + 'sitetheorycore/css/sitetheory.codemirror.css',
-          Stratus.BaseUrl + Stratus.BundlePath + 'bower_components/codemirror/lib/codemirror.css',
-          Stratus.BaseUrl + Stratus.BundlePath + 'bower_components/froala-wysiwyg-editor/css/froala_editor.min.css',
-          Stratus.BaseUrl + Stratus.BundlePath + 'bower_components/froala-wysiwyg-editor/css/froala_style.min.css',
-          Stratus.BaseUrl + Stratus.BundlePath + 'bower_components/froala-wysiwyg-editor/css/plugins/code_view.min.css',
-          Stratus.BaseUrl + Stratus.BundlePath + 'bower_components/froala-wysiwyg-editor/css/plugins/draggable.min.css',
-          Stratus.BaseUrl + Stratus.BundlePath + 'bower_components/froala-wysiwyg-editor/css/plugins/file.min.css',
-          Stratus.BaseUrl + Stratus.BundlePath + 'bower_components/froala-wysiwyg-editor/css/plugins/fullscreen.min.css',
-          Stratus.BaseUrl + Stratus.BundlePath + 'bower_components/froala-wysiwyg-editor/css/plugins/help.min.css',
-          Stratus.BaseUrl + Stratus.BundlePath + 'bower_components/froala-wysiwyg-editor/css/plugins/image.min.css',
-          Stratus.BaseUrl + Stratus.BundlePath + 'bower_components/froala-wysiwyg-editor/css/plugins/image_manager.min.css',
-          Stratus.BaseUrl + Stratus.BundlePath + 'bower_components/froala-wysiwyg-editor/css/plugins/quick_insert.min.css',
-          Stratus.BaseUrl + Stratus.BundlePath + 'bower_components/froala-wysiwyg-editor/css/plugins/special_characters.min.css',
-          Stratus.BaseUrl + Stratus.BundlePath + 'bower_components/froala-wysiwyg-editor/css/plugins/table.min.css',
-          Stratus.BaseUrl + Stratus.BundlePath + 'bower_components/froala-wysiwyg-editor/css/plugins/video.min.css'
+          Stratus.BaseUrl + Stratus.BundlePath + 'node_modules/codemirror/lib/codemirror.css',
+          Stratus.BaseUrl + Stratus.BundlePath + 'node_modules/froala-editor/css/froala_editor.min.css',
+          Stratus.BaseUrl + Stratus.BundlePath + 'node_modules/froala-editor/css/froala_style.min.css',
+          Stratus.BaseUrl + Stratus.BundlePath + 'node_modules/froala-editor/css/plugins/code_view.min.css',
+          Stratus.BaseUrl + Stratus.BundlePath + 'node_modules/froala-editor/css/plugins/draggable.min.css',
+          Stratus.BaseUrl + Stratus.BundlePath + 'node_modules/froala-editor/css/plugins/file.min.css',
+          Stratus.BaseUrl + Stratus.BundlePath + 'node_modules/froala-editor/css/plugins/fullscreen.min.css',
+          Stratus.BaseUrl + Stratus.BundlePath + 'node_modules/froala-editor/css/plugins/help.min.css',
+          Stratus.BaseUrl + Stratus.BundlePath + 'node_modules/froala-editor/css/plugins/image.min.css',
+          Stratus.BaseUrl + Stratus.BundlePath + 'node_modules/froala-editor/css/plugins/image_manager.min.css',
+          Stratus.BaseUrl + Stratus.BundlePath + 'node_modules/froala-editor/css/plugins/quick_insert.min.css',
+          Stratus.BaseUrl + Stratus.BundlePath + 'node_modules/froala-editor/css/plugins/special_characters.min.css',
+          Stratus.BaseUrl + Stratus.BundlePath + 'node_modules/froala-editor/css/plugins/table.min.css',
+          Stratus.BaseUrl + Stratus.BundlePath + 'node_modules/froala-editor/css/plugins/video.min.css'
         ].forEach(function (stylesheet) {
           css.push(stylesheet)
         })
@@ -2947,12 +2948,14 @@ Stratus.Loaders.Angular = function () {
 
       if (css.length) {
         let counter = 0
-        _.each(css, function (url) {
-          Stratus.Internals.CssLoader(url).then(function () {
-            if (++counter === css.length) {
+        css.forEach(function (url) {
+          Stratus.Internals.CssLoader(url)
+            .then(function () {
+              if (++counter !== css.length) {
+                return
+              }
               angular.bootstrap(document.querySelector('html'), ['stratusApp'])
-            }
-          })
+            })
         })
       } else {
         angular.bootstrap(document.querySelector('html'), ['stratusApp'])
@@ -2961,7 +2964,7 @@ Stratus.Loaders.Angular = function () {
   }
 }
 
-/* global Stratus, _, $, bootbox */
+/* global Stratus, _, jQuery, bootbox */
 
 // Instance Clean
 // --------------
@@ -3405,8 +3408,8 @@ Stratus.Events.on('toast', function (event, message, title, priority, settings) 
   if (!Stratus.Environment.get('production')) {
     console.log('Toast:', message)
   }
-  if (typeof $ !== 'undefined' && $.toaster) {
-    $.toaster(message)
+  if (typeof jQuery !== 'undefined' && jQuery.toaster) {
+    jQuery.toaster(message)
   } else {
     Stratus.Events.trigger('alert', message.message)
   }
@@ -3455,5 +3458,6 @@ Stratus.DOM.unload(function (event) {
 // ------------
 
 // Return the Stratus Object so it can be attached in the correct context as either a Global Variable or Object Reference
+  exports = Stratus
   return Stratus
 }))
