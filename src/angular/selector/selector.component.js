@@ -17,7 +17,7 @@ System.register(["@angular/core", "@angular/forms", "@angular/cdk/drag-drop", "r
             step((generator = generator.apply(thisArg, _arguments || [])).next());
         });
     };
-    var core_1, forms_1, drag_drop_1, rxjs_1, platform_browser_1, icon_1, Stratus, _, localDir, SelectorComponent;
+    var core_1, forms_1, drag_drop_1, rxjs_1, platform_browser_1, icon_1, Stratus, _, localDir, systemDir, moduleName, SelectorComponent;
     var __moduleName = context_1 && context_1.id;
     return {
         setters: [
@@ -48,20 +48,33 @@ System.register(["@angular/core", "@angular/forms", "@angular/cdk/drag-drop", "r
         ],
         execute: function () {
             localDir = '/assets/1/0/bundles/sitetheorystratus/stratus/src/angular';
+            systemDir = '@stratus/angular';
+            moduleName = 'selector';
             SelectorComponent = class SelectorComponent {
-                constructor(iconRegistry, sanitizer) {
+                constructor(iconRegistry, sanitizer, ref) {
+                    this.ref = ref;
                     this.title = 'selector-dnd';
                     this.selectCtrl = new forms_1.FormControl();
                     this.registry = new Stratus.Data.Registry();
+                    this.onChange = new rxjs_1.Subject();
                     this.url = '/Api/Content?q=value&options["showRouting"]';
                     this.target = 'Content';
                     this.uid = _.uniqueId('s2_selector_component_');
                     Stratus.Instances[this.uid] = this;
+                    const that = this;
                     this._ = _;
                     this.sanitizer = sanitizer;
                     iconRegistry.addSvgIcon('delete', sanitizer.bypassSecurityTrustResourceUrl('/Api/Resource?path=@SitetheoryCoreBundle:images/icons/actionButtons/delete.svg'));
-                    this.fetchModel();
-                    this.selectedModels = new rxjs_1.Observable((observer) => this.selectedModelDefer(observer));
+                    Stratus.Internals.CssLoader(`${localDir}/${moduleName}/${moduleName}.component.css`);
+                    this.fetchModel()
+                        .then(function (data) {
+                        ref.detach();
+                        data.on('change', function () {
+                            that.selectedModelDefer(that.subscriber);
+                            ref.detectChanges();
+                        });
+                    });
+                    this.selectedModels = new rxjs_1.Observable((subscriber) => this.selectedModelDefer(subscriber));
                 }
                 drop(event) {
                     const models = this.selectedModelRef();
@@ -71,8 +84,19 @@ System.register(["@angular/core", "@angular/forms", "@angular/cdk/drag-drop", "r
                     drag_drop_1.moveItemInArray(models, event.previousIndex, event.currentIndex);
                     let priority = 0;
                     _.each(models, (model) => model.priority = priority++);
+                    this.model.trigger('change');
                 }
                 remove(model) {
+                    const models = this.selectedModelRef();
+                    if (!models || !models.length) {
+                        return;
+                    }
+                    const index = models.indexOf(model);
+                    if (index === -1) {
+                        return;
+                    }
+                    models.splice(index, 1);
+                    this.model.trigger('change');
                 }
                 fetchModel() {
                     return __awaiter(this, void 0, void 0, function* () {
@@ -82,13 +106,14 @@ System.register(["@angular/core", "@angular/forms", "@angular/cdk/drag-drop", "r
                         return this.fetched;
                     });
                 }
-                selectedModelDefer(observer) {
+                selectedModelDefer(subscriber) {
+                    this.subscriber = subscriber;
                     const models = this.selectedModelRef();
                     if (models && models.length) {
-                        observer.next(models);
+                        subscriber.next(models);
                         return;
                     }
-                    setTimeout(() => this.selectedModelDefer(observer), 500);
+                    setTimeout(() => this.selectedModelDefer(subscriber), 500);
                 }
                 selectedModelRef() {
                     if (!this.model) {
@@ -117,12 +142,9 @@ System.register(["@angular/core", "@angular/forms", "@angular/cdk/drag-drop", "r
             SelectorComponent = __decorate([
                 core_1.Component({
                     selector: 's2-selector',
-                    templateUrl: `${localDir}/selector/selector.component.html`,
-                    styleUrls: [
-                        `${localDir}/selector/selector.component.css`
-                    ],
+                    templateUrl: `${localDir}/${moduleName}/${moduleName}.component.html`,
                 }),
-                __metadata("design:paramtypes", [icon_1.MatIconRegistry, platform_browser_1.DomSanitizer])
+                __metadata("design:paramtypes", [icon_1.MatIconRegistry, platform_browser_1.DomSanitizer, core_1.ChangeDetectorRef])
             ], SelectorComponent);
             exports_1("SelectorComponent", SelectorComponent);
         }

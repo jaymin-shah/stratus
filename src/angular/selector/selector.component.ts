@@ -1,12 +1,12 @@
 // Angular Core
-import {Component, Output} from "@angular/core";
+import {ChangeDetectorRef, Component, Output} from "@angular/core";
 import {FormControl} from '@angular/forms';
 
 // CDK
 import {CdkDragDrop, moveItemInArray} from "@angular/cdk/drag-drop";
 
 // External
-import {Observable} from 'rxjs';
+import {Observable, Subject, Subscriber} from 'rxjs';
 import {map, startWith} from 'rxjs/operators';
 
 // SVG Icons
@@ -15,8 +15,11 @@ import {MatIconRegistry} from '@angular/material/icon';
 
 import * as Stratus from "stratus";
 import * as _ from "lodash";
+import {SubjectSubscriber} from "rxjs/internal/Subject";
 
 const localDir = '/assets/1/0/bundles/sitetheorystratus/stratus/src/angular';
+const systemDir = '@stratus/angular';
+const moduleName = 'selector';
 
 // export interface Model {
 //     completed: boolean;
@@ -28,10 +31,11 @@ const localDir = '/assets/1/0/bundles/sitetheorystratus/stratus/src/angular';
  */
 @Component({
     selector: 's2-selector',
-    templateUrl: `${localDir}/selector/selector.component.html`,
-    styleUrls: [
-        `${localDir}/selector/selector.component.css`
-    ],
+    templateUrl: `${localDir}/${moduleName}/${moduleName}.component.html`,
+    // FIXME: This doesn't work, as it seems Angular attempts to use a System.js import instead of their own, so it will require the steal-css module
+    // styleUrls: [
+    //     `${localDir}/${moduleName}/${moduleName}.component.css`
+    // ],
 })
 
 export class SelectorComponent {
@@ -55,6 +59,9 @@ export class SelectorComponent {
 
     // Observable Connection
     selectedModels: Observable<[]>;
+    onChange = new Subject();
+    subscriber: Subscriber<any>;
+    // Note: It may be better to LifeCycle::tick(), but this works for now
 
     // API Endpoint for Selector
     // TODO: Avoid hard-coding this...
@@ -65,11 +72,14 @@ export class SelectorComponent {
     // filteredModels: Observable<[]>;
     // filteredModels: any;
 
-    constructor(iconRegistry: MatIconRegistry, sanitizer: DomSanitizer) {
+    constructor(iconRegistry: MatIconRegistry, sanitizer: DomSanitizer, private ref: ChangeDetectorRef) {
 
         // Initialization
         this.uid = _.uniqueId('s2_selector_component_');
         Stratus.Instances[this.uid] = this;
+
+        // Hoist Context
+        const that = this;
 
         // Dependencies
         this._ = _;
@@ -81,14 +91,23 @@ export class SelectorComponent {
             sanitizer.bypassSecurityTrustResourceUrl('/Api/Resource?path=@SitetheoryCoreBundle:images/icons/actionButtons/delete.svg')
         );
 
+        // TODO: Assess & Possibly Remove when the System.js ecosystem is complete
+        // Load Component CSS until System.js can import CSS properly.
+        Stratus.Internals.CssLoader(`${localDir}/${moduleName}/${moduleName}.component.css`);
+
         // Data Connections
-        this.fetchModel();
-            // .then(function (data: any) {
-            //     console.log('S2 Selector Model:', data)
-            // });
+        this.fetchModel()
+            .then(function (data: any) {
+                // Manually render upon model change
+                ref.detach();
+                data.on('change', function () {
+                    that.selectedModelDefer(that.subscriber);
+                    ref.detectChanges();
+                });
+            });
 
         // Handling Pipes with Promises
-        this.selectedModels = new Observable((observer) => this.selectedModelDefer(observer));
+        this.selectedModels = new Observable((subscriber) => this.selectedModelDefer(subscriber));
 
         // AutoComplete Binding
         // this.filteredModels = this.selectCtrl.valueChanges
@@ -119,14 +138,23 @@ export class SelectorComponent {
         moveItemInArray(models, event.previousIndex, event.currentIndex);
         let priority = 0;
         _.each(models, (model) => model.priority = priority++);
-        // this.model.set('version.modules', models);
+        this.model.trigger('change')
     }
 
     /**
      * @param model
      */
     remove(model: any) {
-        // console.log('remove:', model, 'from:', this.collection ? this.collection.models : [])
+        const models = this.selectedModelRef();
+        if (!models || !models.length) {
+            return
+        }
+        const index: number = models.indexOf(model);
+        if (index === -1) {
+            return
+        }
+        models.splice(index, 1);
+        this.model.trigger('change')
     }
 
     // Data Connections
@@ -137,13 +165,14 @@ export class SelectorComponent {
         return this.fetched;
     }
 
-    selectedModelDefer (observer: any) {
+    selectedModelDefer (subscriber: Subscriber<any>) {
+        this.subscriber = subscriber;
         const models = this.selectedModelRef();
         if (models && models.length) {
-            observer.next(models);
+            subscriber.next(models);
             return;
         }
-        setTimeout(() => this.selectedModelDefer(observer), 500);
+        setTimeout(() => this.selectedModelDefer(subscriber), 500);
     }
 
     selectedModelRef(): any {
