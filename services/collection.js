@@ -24,8 +24,11 @@
   let $$mdToast = function () {
     console.error('$$mdToast not loaded:', arguments)
   }
-  class Collection {
+  class Collection extends Stratus.Prototypes.EventManager {
     constructor (options) {
+      super()
+      this.name = 'Collection'
+
       // Environment
       this.target = null
       this.direct = false
@@ -243,6 +246,9 @@
             that.filtering = false
             that.paginate = false
 
+            // Trigger Change Event
+            that.throttleTrigger('change')
+
             // Promise
             resolve(that.models)
           } else {
@@ -261,12 +267,19 @@
               error.message = 'Unknown AngularCollection error!'
             }
 
+            // Trigger Change Event
+            that.throttleTrigger('change')
+
             // Promise
             reject(error)
           }
+
+          // Trigger Change Event
+          that.throttleTrigger('change')
         }).catch(function (error) {
           // (/(.*)\sReceived/i).exec(error.message)[1]
           console.error('XHR: ' + prototype.method + ' ' + prototype.url)
+          that.throttleTrigger('change')
           reject(error)
           throw error
         })
@@ -374,6 +387,7 @@
         collection: that
       }, target)
       that.models.push(target)
+      that.throttleTrigger('change')
       if (options.save) {
         target.save()
       }
@@ -385,6 +399,7 @@
     remove (target) {
       const that = this
       that.models.splice(that.models.indexOf(target), 1)
+      that.throttleTrigger('change')
     }
 
     /**

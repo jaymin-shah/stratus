@@ -57,27 +57,34 @@ System.register(["@angular/core", "@angular/forms", "@angular/cdk/drag-drop", "r
                     this.selectCtrl = new forms_1.FormControl();
                     this.registry = new Stratus.Data.Registry();
                     this.onChange = new rxjs_1.Subject();
-                    this.url = '/Api/Content?q=value&options["showRouting"]';
-                    this.target = 'Content';
-                    this.uid = _.uniqueId('s2_selector_component_');
+                    this.uid = _.uniqueId('sa_selector_component_');
                     Stratus.Instances[this.uid] = this;
                     const that = this;
                     this._ = _;
                     this.sanitizer = sanitizer;
                     iconRegistry.addSvgIcon('delete', sanitizer.bypassSecurityTrustResourceUrl('/Api/Resource?path=@SitetheoryCoreBundle:images/icons/actionButtons/delete.svg'));
                     Stratus.Internals.CssLoader(`${localDir}/${moduleName}/${moduleName}.component.css`);
-                    this.fetchModel()
-                        .then(function (data) {
-                        ref.detach();
-                        data.on('change', function () {
-                            that.selectedModelDefer(that.subscriber);
+                    console.log('inputs:', this.target, this.id, this.manifest, this.api);
+                    if (_.isUndefined(this.target)) {
+                        this.target = 'Content';
+                    }
+                    this.dataSub = new rxjs_1.Observable(subscriber => this.dataDefer(subscriber));
+                    this.fetchData()
+                        .then((data) => {
+                        if (!data.on) {
+                            console.warn('Unable to bind data from Registry!');
+                            return;
+                        }
+                        data.on('change', () => {
+                            that.dataDefer(that.subscriber);
                             ref.detectChanges();
                         });
+                        that.dataDefer(that.subscriber);
+                        ref.detectChanges();
                     });
-                    this.selectedModels = new rxjs_1.Observable((subscriber) => this.selectedModelDefer(subscriber));
                 }
                 drop(event) {
-                    const models = this.selectedModelRef();
+                    const models = this.dataRef();
                     if (!models || !models.length) {
                         return;
                     }
@@ -87,7 +94,7 @@ System.register(["@angular/core", "@angular/forms", "@angular/cdk/drag-drop", "r
                     this.model.trigger('change');
                 }
                 remove(model) {
-                    const models = this.selectedModelRef();
+                    const models = this.dataRef();
                     if (!models || !models.length) {
                         return;
                     }
@@ -98,7 +105,7 @@ System.register(["@angular/core", "@angular/forms", "@angular/cdk/drag-drop", "r
                     models.splice(index, 1);
                     this.model.trigger('change');
                 }
-                fetchModel() {
+                fetchData() {
                     return __awaiter(this, void 0, void 0, function* () {
                         if (!this.fetched) {
                             this.fetched = this.registry.fetch(Stratus.Select('#widget-edit-entity'), this);
@@ -106,24 +113,39 @@ System.register(["@angular/core", "@angular/forms", "@angular/cdk/drag-drop", "r
                         return this.fetched;
                     });
                 }
-                selectedModelDefer(subscriber) {
+                dataDefer(subscriber) {
                     this.subscriber = subscriber;
-                    const models = this.selectedModelRef();
-                    if (models && models.length) {
-                        subscriber.next(models);
+                    const models = this.dataRef();
+                    if (!models || !models.length) {
+                        setTimeout(() => {
+                            this.dataDefer(subscriber);
+                        }, 500);
                         return;
                     }
-                    setTimeout(() => this.selectedModelDefer(subscriber), 500);
+                    console.log('pushed models to subscriber.');
+                    subscriber.next(models);
                 }
-                selectedModelRef() {
+                dataRef() {
                     if (!this.model) {
                         return [];
                     }
-                    const models = this.model.get("version.modules");
+                    const models = _.get(this.model, 'data.version.modules');
                     if (!models || !_.isArray(models)) {
                         return [];
                     }
                     return models;
+                }
+                onDataChange(ref) {
+                    this.dataDefer(this.subscriber);
+                    ref.detectChanges();
+                }
+                prioritize() {
+                    const models = this.dataRef();
+                    if (!models || !models.length) {
+                        return;
+                    }
+                    let priority = 0;
+                    _.each(models, (model) => model.priority = priority++);
                 }
                 findImage(model) {
                     const mime = _.get(model, 'version.images[0].mime');
@@ -139,10 +161,31 @@ System.register(["@angular/core", "@angular/forms", "@angular/cdk/drag-drop", "r
                     return '';
                 }
             };
+            __decorate([
+                core_1.Input(),
+                __metadata("design:type", String)
+            ], SelectorComponent.prototype, "target", void 0);
+            __decorate([
+                core_1.Input(),
+                __metadata("design:type", Number)
+            ], SelectorComponent.prototype, "id", void 0);
+            __decorate([
+                core_1.Input(),
+                __metadata("design:type", Boolean)
+            ], SelectorComponent.prototype, "manifest", void 0);
+            __decorate([
+                core_1.Input(),
+                __metadata("design:type", Object)
+            ], SelectorComponent.prototype, "api", void 0);
+            __decorate([
+                core_1.Input(),
+                __metadata("design:type", Object)
+            ], SelectorComponent.prototype, "searchQuery", void 0);
             SelectorComponent = __decorate([
                 core_1.Component({
-                    selector: 's2-selector',
+                    selector: 'sa-selector',
                     templateUrl: `${localDir}/${moduleName}/${moduleName}.component.html`,
+                    changeDetection: core_1.ChangeDetectionStrategy.OnPush
                 }),
                 __metadata("design:paramtypes", [icon_1.MatIconRegistry, platform_browser_1.DomSanitizer, core_1.ChangeDetectorRef])
             ], SelectorComponent);

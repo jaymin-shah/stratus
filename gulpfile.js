@@ -13,7 +13,7 @@ const _ = require('lodash')
 
 // Task Specific
 const standard = require('gulp-standard')
-const gulpStylelint = require('gulp-stylelint')
+// const gulpStylelint = require('gulp-stylelint')
 const minCSS = require('gulp-clean-css')
 const htmlmin = require('gulp-htmlmin')
 
@@ -95,53 +95,53 @@ const location = {
   },
   mangle: {
     core: [
-      'dist/*.js',
-      'extras/normalizers/*.js',
-      'services/*.js',
-      'extras/services/*.js',
+      'dist/**/*.js',
+      'extras/normalizers/**/*.js',
+      'services/**/*.js',
+      'extras/services/**/*.js',
       'legacy/**/*.js',
       'src/**/*.js'
     ],
     min: [
-      'dist/*.min.js',
-      'extras/normalizers/*.min.js',
-      'services/*.min.js',
-      'extras/services/*.min.js',
+      'dist/**/*.min.js',
+      'extras/normalizers/**/*.min.js',
+      'services/**/*.min.js',
+      'extras/services/**/*.min.js',
       'legacy/**/*.min.js',
       'src/**/*.min.js'
     ]
   },
   preserve: {
     core: [
-      'boot/*.js',
-      'components/*.js',
-      'extras/components/*.js',
-      'controllers/*.js',
-      'extras/controllers/*.js',
-      'directives/*.js',
-      'extras/directives/*.js',
-      'filters/*.js',
-      'extras/filters/*.js'
+      'boot/**/*.js',
+      'components/**/*.js',
+      'extras/components/**/*.js',
+      'controllers/**/*.js',
+      'extras/controllers/**/*.js',
+      'directives/**/*.js',
+      'extras/directives/**/*.js',
+      'filters/**/*.js',
+      'extras/filters/**/*.js'
     ],
     min: [
-      'boot/*.min.js',
-      'components/*.min.js',
-      'extras/components/*.min.js',
-      'controllers/*.min.js',
-      'extras/controllers/*.min.js',
-      'directives/*.min.js',
-      'extras/directives/*.min.js',
-      'filters/*.min.js',
-      'extras/filters/*.min.js'
+      'boot/**/*.min.js',
+      'components/**/*.min.js',
+      'extras/components/**/*.min.js',
+      'controllers/**/*.min.js',
+      'extras/controllers/**/*.min.js',
+      'directives/**/*.min.js',
+      'extras/directives/**/*.min.js',
+      'filters/**/*.min.js',
+      'extras/filters/**/*.min.js'
     ]
   },
   less: {
     core: [
       // 'stratus.less',
-      'components/*.less',
-      'extras/components/*.less',
-      'directives/*.less',
-      'extras/directives/*.less',
+      'components/**/*.less',
+      'extras/components/**/*.less',
+      'directives/**/*.less',
+      'extras/directives/**/*.less',
       'src/**/*.less'
     ],
     compile: []
@@ -149,10 +149,10 @@ const location = {
   sass: {
     core: [
       // 'stratus.scss',
-      'components/*.scss',
-      'extras/components/*.scss',
-      'directives/*.scss',
-      'extras/directives/*.scss',
+      'components/**/*.scss',
+      'extras/components/**/*.scss',
+      'directives/**/*.scss',
+      'extras/directives/**/*.scss',
       'src/**/*.scss'
     ],
     compile: []
@@ -160,54 +160,57 @@ const location = {
   css: {
     core: [
       // 'stratus.css',
-      'components/*.css',
-      'extras/components/*.css',
-      'directives/*.css',
-      'extras/directives/*.css',
+      'components/**/*.css',
+      'extras/components/**/*.css',
+      'directives/**/*.css',
+      'extras/directives/**/*.css',
       'src/**/*.css'
     ],
     min: [
       // 'stratus.min.css',
-      'components/*.min.css',
-      'extras/components/*.min.css',
-      'directives/*.min.css',
-      'extras/directives/*.min.css',
+      'components/**/*.min.css',
+      'extras/components/**/*.min.css',
+      'directives/**/*.min.css',
+      'extras/directives/**/*.min.css',
       'src/**/*.min.css'
+    ],
+    nonstandard: [
+      'src/**/*.css'
     ]
   },
   coffee: {
     core: [
-      'components/*.coffee',
-      'extras/components/*.coffee',
-      'directives/*.coffee',
-      'extras/directives/*.coffee',
+      'components/**/*.coffee',
+      'extras/components/**/*.coffee',
+      'directives/**/*.coffee',
+      'extras/directives/**/*.coffee',
       'src/**/*.coffee'
     ],
     compile: []
   },
   typescript: {
     core: [
-      'components/*.ts',
-      'extras/components/*.ts',
-      'directives/*.ts',
-      'extras/directives/*.ts',
+      'components/**/*.ts',
+      'extras/components/**/*.ts',
+      'directives/**/*.ts',
+      'extras/directives/**/*.ts',
       'src/**/*.ts'
     ],
     compile: []
   },
   template: {
     core: [
-      'components/*.html',
-      'extras/components/*.html',
-      'directives/*.html',
-      'extras/directives/*.html',
+      'components/**/*.html',
+      'extras/components/**/*.html',
+      'directives/**/*.html',
+      'extras/directives/**/*.html',
       'src/**/*.html'
     ],
     min: [
-      'components/*.min.html',
-      'extras/components/*.min.html',
-      'directives/*.min.html',
-      'extras/directives/*.min.html',
+      'components/**/*.min.html',
+      'extras/components/**/*.min.html',
+      'directives/**/*.min.html',
+      'extras/directives/**/*.min.html',
       'src/**/*.min.html'
     ]
   }
@@ -238,13 +241,12 @@ function lintJS () {
       showRuleNames: true
     }))
 }
+/* *
 function lintCSS () {
-  return src(_.union(location.css.core, nullify(location.css.min)))
-    /* *
+  return src(_.union(location.css.core, nullify(location.css.min), nullify(location.css.nonstandard)))
     .pipe(debug({
       title: 'Lint CSS:'
     }))
-    /* */
     .pipe(gulpStylelint({
       // fix: true,
       reporters: [
@@ -254,6 +256,7 @@ function lintCSS () {
         }]
     }))
 }
+/* */
 
 // Distribution Functions
 function distBoot () {
@@ -499,10 +502,7 @@ exports.clean = parallel(
   cleanTemplate,
   cleanExternal
 )
-exports.lint = parallel(
-  lintJS,
-  lintCSS
-)
+exports.lint = lintJS
 exports.dist = parallel(
   distBoot,
   distStratus

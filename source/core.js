@@ -1,4 +1,4 @@
-/* global Stratus, _, jQuery, bootbox */
+/* global Stratus, _, jQuery, hamlet, bootbox */
 
 // Instance Clean
 // --------------
@@ -135,16 +135,16 @@ class Chronos extends Stratus.Prototypes.Model {
    * @param time
    * @param method
    * @param scope
-   * @returns {string}
+   * @returns {string|null}
    */
   queue (time, method, scope) {
-    let uid = null
-    let job = new Stratus.Prototypes.Job(time, method, scope)
-    if (job.time !== null && typeof job.method === 'function') {
-      uid = _.uniqueId('job_')
-      this.set(uid, job)
-      Stratus.Instances[uid] = job
+    const job = time instanceof Stratus.Prototypes.Job ? time : new Stratus.Prototypes.Job(time, method, scope)
+    if (job.time === null || typeof job.method !== 'function') {
+      return null
     }
+    const uid = _.uniqueId('job_')
+    this.set(uid, job)
+    Stratus.Instances[uid] = job
     return uid
   }
   /**
@@ -152,22 +152,22 @@ class Chronos extends Stratus.Prototypes.Model {
    * @returns {boolean|*}
    */
   enable (uid) {
-    let success = this.has(uid)
-    if (success) {
-      this.set(uid + '.enabled', true)
+    if (!this.has(uid)) {
+      return false
     }
-    return success
+    this.set(uid + '.enabled', true)
+    return true
   }
   /**
    * @param uid
    * @returns {boolean|*}
    */
   disable (uid) {
-    let success = this.has(uid)
-    if (success) {
-      this.set(uid + '.enabled', false)
+    if (!this.has(uid)) {
+      return false
     }
-    return success
+    this.set(uid + '.enabled', false)
+    return true
   }
   /**
    * @param uid
@@ -175,12 +175,11 @@ class Chronos extends Stratus.Prototypes.Model {
    * @returns {boolean|*}
    */
   toggle (uid, value) {
-    let success = this.has(uid)
-    if (success) {
-      this.set(uid + '.enabled',
-        (typeof value === 'boolean') ? value : !this.get(uid + '.enabled'))
+    if (!this.has(uid)) {
+      return false
     }
-    return success
+    this.set(uid + '.enabled', typeof value === 'boolean' ? value : !this.get(uid + '.enabled'))
+    return true
   }
 }
 Stratus.Chronos = new Chronos()
@@ -245,7 +244,7 @@ Stratus.LocalStorage.Listen = function (key, fn) {
 // When an event arrives from any source, we will handle it
 // appropriately.
 Stratus.LocalStorage.Listen('stratus-core', function (data) {
-  console.log('LocalStorage:', data)
+  // console.log('LocalStorage:', data)
 })
 // localStorage.setItem('stratus-core', 'foo')
 
@@ -268,8 +267,7 @@ Stratus.DOM.ready = function (fn) {
  * @param fn
  */
 Stratus.DOM.complete = function (fn) {
-  (document.readyState === 'complete') ? fn() : window.addEventListener('load',
-    fn)
+  (document.readyState === 'complete') ? fn() : window.addEventListener('load', fn)
 }
 
 // This function executes before the DOM has completely Unloaded,
@@ -467,9 +465,8 @@ Stratus.DOM.complete(function () {
   Stratus('body').removeClass('loading unloaded').addClass('loaded')
 
   // Load Angular 8+
-  const detect = document.getElementsByTagName('s2-content-module-edit')
-  if (detect && detect.length) {
-    require(['@stratus/angular/main'])
+  if (!hamlet.isUndefined('System')) {
+    require(['quill', '@stratus/angular/main'])
   }
 })
 

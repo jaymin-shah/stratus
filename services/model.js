@@ -18,13 +18,13 @@
   }
 }(this, function (exports, Stratus, _, angular) {
   let $$http = function () {
-    console.error('$$http not loaded:', arguments)
+    console.error('$http not loaded:', arguments)
   }
   let $$mdToast = function () {
-    console.error('$$mdToast not loaded:', arguments)
+    console.error('$mdToast not loaded:', arguments)
   }
   let $$rootScope = function () {
-    console.error('$$rootScope not loaded:', arguments)
+    console.error('$rootScope not loaded:', arguments)
   }
   class Model extends Stratus.Prototypes.Model {
     constructor (options, attributes) {
@@ -130,6 +130,13 @@
        */
       this.initialize = _.once(this.initialize || function () {
         const that = this
+        // Bubble Event + Defer
+        // that.on('change', function () {
+        //   if (!that.collection) {
+        //     return
+        //   }
+        //   that.collection.throttleTrigger('change')
+        // })
         if (that.manifest && !that.getIdentifier()) {
           that.sync('POST', that.meta.has('api') ? {
             meta: that.meta.get('api'),
@@ -203,7 +210,7 @@
           )
         }
         that.patch = _.extend(that.patch, patch)
-        that.trigger('change')
+        that.throttleTrigger('change')
       }, true)
     }
 
@@ -318,7 +325,25 @@
         }
 
         $$http(prototype).then(function (response) {
+          // XHR Flags
+          that.pending = false
+          that.completed = true
+
+          // Data Stores
           that.status = response.status
+
+          // Begin Watching
+          that.watcher()
+
+          // Reset status model
+          setTimeout(function () {
+            that.changed = false
+            that.throttleTrigger('change')
+            if (that.collection) {
+              that.collection.throttleTrigger('change')
+            }
+          }, 100)
+
           if (response.status === 200 && angular.isObject(response.data)) {
             // TODO: Make this into an over-writable function
             // Data
@@ -338,31 +363,16 @@
             }
 
             if (!that.error) {
-              // XHR Flags
-              that.completed = true
-
               // Auto-Saving Settings
               that.saving = false
               that.patch = {}
-
-              // Begin Watching
-              that.watcher()
-
-              // Reset status model
-              setTimeout(function () {
-                that.changed = false
-              }, 100)
             }
-
-            // XHR Flags
-            that.pending = false
 
             // Promise
             // angular.copy(that.data, that.initData)
             resolve(that.data)
           } else {
             // XHR Flags
-            that.pending = false
             that.error = true
 
             // Build Report
@@ -636,8 +646,8 @@
       } else {
         that.data[attr] = value
       }
-      that.trigger('change', that)
-      that.trigger(`change:${attr}`, value)
+      that.throttleTrigger('change', that)
+      that.throttleTrigger(`change:${attr}`, value)
     }
 
     /**

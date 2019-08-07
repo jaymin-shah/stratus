@@ -4,9 +4,10 @@
 // --------------------
 
 Stratus.Prototypes.EventManager = class EventManager {
-  constructor () {
+  constructor (throttle) {
     this.name = 'EventManager'
     this.listeners = {}
+    this.throttleTrigger = _.throttle(this.trigger, throttle || 100)
   }
 
   /**
@@ -193,6 +194,11 @@ Stratus.Prototypes.Model = class Model extends Stratus.Prototypes.EventManager {
      * @type {{}}
      */
     this.temps = {}
+
+    // Diff Detection
+    this.changed = false
+    this.watching = false
+    this.patch = {}
 
     // Evaluate object or array
     if (data) {

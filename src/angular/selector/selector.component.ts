@@ -1,9 +1,9 @@
 // Angular Core
-import {ChangeDetectorRef, Component, Output} from "@angular/core";
+import {ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, Output} from '@angular/core';
 import {FormControl} from '@angular/forms';
 
 // CDK
-import {CdkDragDrop, moveItemInArray} from "@angular/cdk/drag-drop";
+import {CdkDragDrop, moveItemInArray} from '@angular/cdk/drag-drop';
 
 // External
 import {Observable, Subject, Subscriber} from 'rxjs';
@@ -13,9 +13,9 @@ import {map, startWith} from 'rxjs/operators';
 import {DomSanitizer, ɵDomSanitizerImpl} from '@angular/platform-browser';
 import {MatIconRegistry} from '@angular/material/icon';
 
-import * as Stratus from "stratus";
-import * as _ from "lodash";
-import {SubjectSubscriber} from "rxjs/internal/Subject";
+import * as Stratus from 'stratus';
+import * as _ from 'lodash';
+import {SubjectSubscriber} from 'rxjs/internal/Subject';
 
 const localDir = '/assets/1/0/bundles/sitetheorystratus/stratus/src/angular';
 const systemDir = '@stratus/angular';
@@ -30,12 +30,15 @@ const moduleName = 'selector';
  * @title AutoComplete Selector with Drag&Drop Sorting
  */
 @Component({
-    selector: 's2-selector',
+    // selector: 'sa-selector-component',
+    selector: 'sa-selector',
     templateUrl: `${localDir}/${moduleName}/${moduleName}.component.html`,
-    // FIXME: This doesn't work, as it seems Angular attempts to use a System.js import instead of their own, so it will require the steal-css module
+    // FIXME: This doesn't work, as it seems Angular attempts to use a System.js import instead of their own, so it will
+    // require the steal-css module
     // styleUrls: [
     //     `${localDir}/${moduleName}/${moduleName}.component.css`
     // ],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 
 export class SelectorComponent {
@@ -43,6 +46,13 @@ export class SelectorComponent {
     // Basic Component Settings
     title = 'selector-dnd';
     uid: string;
+
+    // Element Attributes
+    @Input() target: string;
+    @Input() id: number;
+    @Input() manifest: boolean;
+    @Input() api: object;
+    @Input() searchQuery: object;
 
     // Dependencies
     _: any;
@@ -58,15 +68,10 @@ export class SelectorComponent {
     model: any;
 
     // Observable Connection
-    selectedModels: Observable<[]>;
+    dataSub: Observable<[]>;
     onChange = new Subject();
     subscriber: Subscriber<any>;
     // Note: It may be better to LifeCycle::tick(), but this works for now
-
-    // API Endpoint for Selector
-    // TODO: Avoid hard-coding this...
-    url = '/Api/Content?q=value&options["showRouting"]';
-    target = 'Content';
 
     // API Connectivity for Selector
     // filteredModels: Observable<[]>;
@@ -75,7 +80,7 @@ export class SelectorComponent {
     constructor(iconRegistry: MatIconRegistry, sanitizer: DomSanitizer, private ref: ChangeDetectorRef) {
 
         // Initialization
-        this.uid = _.uniqueId('s2_selector_component_');
+        this.uid = _.uniqueId('sa_selector_component_');
         Stratus.Instances[this.uid] = this;
 
         // Hoist Context
@@ -95,19 +100,33 @@ export class SelectorComponent {
         // Load Component CSS until System.js can import CSS properly.
         Stratus.Internals.CssLoader(`${localDir}/${moduleName}/${moduleName}.component.css`);
 
+        console.log('inputs:', this.target, this.id, this.manifest, this.api);
+
+        if (_.isUndefined(this.target)) {
+            this.target = 'Content';
+        }
+
+        // Declare Observable with Subscriber (Only Happens Once)
+        this.dataSub = new Observable(subscriber => this.dataDefer(subscriber));
+
         // Data Connections
-        this.fetchModel()
-            .then(function (data: any) {
+        this.fetchData()
+            .then((data: any) => {
+                if (!data.on) {
+                    console.warn('Unable to bind data from Registry!');
+                    return;
+                }
                 // Manually render upon model change
-                ref.detach();
-                data.on('change', function () {
-                    that.selectedModelDefer(that.subscriber);
+                // ref.detach();
+                data.on('change', () => {
+                    // that.onDataChange(ref);
+                    that.dataDefer(that.subscriber);
                     ref.detectChanges();
                 });
+                // that.onDataChange(ref);
+                that.dataDefer(that.subscriber);
+                ref.detectChanges();
             });
-
-        // Handling Pipes with Promises
-        this.selectedModels = new Observable((subscriber) => this.selectedModelDefer(subscriber));
 
         // AutoComplete Binding
         // this.filteredModels = this.selectCtrl.valueChanges
@@ -124,75 +143,75 @@ export class SelectorComponent {
     // }
 
     // ngDoCheck(): void {
-    //     console.info('ngDoCheck:', this.selectedModels);
+    //     console.info('ngDoCheck:', this.dataSub);
     // }
 
-    /**
-     * @param event
-     */
     drop(event: CdkDragDrop<string[]>) {
-        const models = this.selectedModelRef();
+        const models = this.dataRef();
         if (!models || !models.length) {
-            return
+            return;
         }
         moveItemInArray(models, event.previousIndex, event.currentIndex);
         let priority = 0;
         _.each(models, (model) => model.priority = priority++);
-        this.model.trigger('change')
+        this.model.trigger('change');
     }
 
-    /**
-     * @param model
-     */
     remove(model: any) {
-        const models = this.selectedModelRef();
+        const models = this.dataRef();
         if (!models || !models.length) {
-            return
+            return;
         }
         const index: number = models.indexOf(model);
         if (index === -1) {
-            return
+            return;
         }
         models.splice(index, 1);
-        this.model.trigger('change')
+        // this.prioritize();
+        this.model.trigger('change');
     }
 
     // Data Connections
-    async fetchModel(): Promise<any> {
+    async fetchData(): Promise<any> {
         if (!this.fetched) {
-            this.fetched = this.registry.fetch(Stratus.Select('#widget-edit-entity'), this)
+            this.fetched = this.registry.fetch(Stratus.Select('#widget-edit-entity'), this);
         }
         return this.fetched;
     }
 
-    selectedModelDefer (subscriber: Subscriber<any>) {
+    // Ensures Data is populated before hitting the Subscriber
+    dataDefer(subscriber: Subscriber<any>) {
         this.subscriber = subscriber;
-        const models = this.selectedModelRef();
-        if (models && models.length) {
-            subscriber.next(models);
+        const models = this.dataRef();
+        if (!models || !models.length) {
+            setTimeout(() => {
+                this.dataDefer(subscriber);
+            }, 500);
             return;
         }
-        setTimeout(() => this.selectedModelDefer(subscriber), 500);
+        console.log('pushed models to subscriber.');
+        subscriber.next(models);
+        // TODO: Add a returned Promise to ensure async/await can use this defer directly.
     }
 
-    selectedModelRef(): any {
+    dataRef(): any {
         if (!this.model) {
-            return []
+            return [];
         }
-        const models = this.model.get("version.modules");
+        const models = _.get(this.model, 'data.version.modules');
         if (!models || !_.isArray(models)) {
-            return []
+            return [];
         }
         return models;
     }
 
     // selectedModel (observer: any) : any {
     //     if (!this.data) {
-    //         this.fetchModel().then(function (data: any) {
+    //         this.fetchData().then(function (data: any) {
     //             observer.next(data)
     //         });
     //     }
-    //     // data.on('change', () => observer.next(that.selectedModelRef()));
+    //     // data.on('change', () => observer.next(that.dataRef()));
     //     observer.next()
     // }
 
@@ -200,16 +219,16 @@ export class SelectorComponent {
     //     const that = this;
     //     return new Promise(function (resolve, reject) {
     //         if (that.model) {
-    //             resolve(that.selectedModelRef());
+    //             resolve(that.dataRef());
     //             return;
     //         }
-    //         that.fetchModel()
+    //         that.fetchData()
     //             .then(function (data: any) {
     //                 if (!data.completed) {
     //                     console.error('still waiting on XHR!');
     //                     // return;
     //                 }
-    //                 resolve(that.selectedModelRef());
+    //                 resolve(that.dataRef());
     //             })
     //             .catch(function (err: any) {
     //                 console.error("unable to fetch model:", err);
@@ -218,26 +237,37 @@ export class SelectorComponent {
     //     });
     // }
 
-    /**
-     * @param value
-     * @private
-     */
     // private _filterModels(value: string): any {
     //     // return await this.collection.filterAsync(value);
     //     // return await [];
     //     return [];
     // }
 
+    onDataChange(ref: ChangeDetectorRef) {
+        // that.prioritize();
+        this.dataDefer(this.subscriber);
+        ref.detectChanges();
+    }
+
+    prioritize() {
+        const models = this.dataRef();
+        if (!models || !models.length) {
+            return;
+        }
+        let priority = 0;
+        _.each(models, (model) => model.priority = priority++);
+    }
+
     findImage(model: any) {
         const mime = _.get(model, 'version.images[0].mime');
         if (mime === undefined) {
-            return ''
+            return '';
         }
         if (mime.indexOf('image') !== -1) {
             return _.get(model, 'version.images[0].src');
         } else if (mime.indexOf('video') !== -1) {
             return _.get(model, 'version.images[0].meta.thumbnail_small');
         }
-        return ''
+        return '';
     }
 }
