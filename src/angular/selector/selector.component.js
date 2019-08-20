@@ -17,7 +17,7 @@ System.register(["@angular/core", "@angular/forms", "@angular/cdk/drag-drop", "r
             step((generator = generator.apply(thisArg, _arguments || [])).next());
         });
     };
-    var core_1, forms_1, drag_drop_1, rxjs_1, platform_browser_1, icon_1, Stratus, _, localDir, systemDir, moduleName, SelectorComponent;
+    var core_1, forms_1, drag_drop_1, rxjs_1, platform_browser_1, icon_1, Stratus, _, localDir, systemDir, moduleName, has, SelectorComponent;
     var __moduleName = context_1 && context_1.id;
     return {
         setters: [
@@ -50,17 +50,22 @@ System.register(["@angular/core", "@angular/forms", "@angular/cdk/drag-drop", "r
             localDir = '/assets/1/0/bundles/sitetheorystratus/stratus/src/angular';
             systemDir = '@stratus/angular';
             moduleName = 'selector';
+            has = (object, path) => {
+                return _.has(object, path) && !_.isEmpty(_.get(object, path));
+            };
             SelectorComponent = class SelectorComponent {
                 constructor(iconRegistry, sanitizer, ref) {
                     this.ref = ref;
                     this.title = 'selector-dnd';
+                    this._ = _;
+                    this.has = has;
+                    this.log = console.log;
                     this.selectCtrl = new forms_1.FormControl();
                     this.registry = new Stratus.Data.Registry();
                     this.onChange = new rxjs_1.Subject();
                     this.uid = _.uniqueId('sa_selector_component_');
                     Stratus.Instances[this.uid] = this;
                     const that = this;
-                    this._ = _;
                     this.sanitizer = sanitizer;
                     iconRegistry.addSvgIcon('delete', sanitizer.bypassSecurityTrustResourceUrl('/Api/Resource?path=@SitetheoryCoreBundle:images/icons/actionButtons/delete.svg'));
                     Stratus.Internals.CssLoader(`${localDir}/${moduleName}/${moduleName}.component.css`);
@@ -146,19 +151,6 @@ System.register(["@angular/core", "@angular/forms", "@angular/cdk/drag-drop", "r
                     }
                     let priority = 0;
                     _.each(models, (model) => model.priority = priority++);
-                }
-                findImage(model) {
-                    const mime = _.get(model, 'version.images[0].mime');
-                    if (mime === undefined) {
-                        return '';
-                    }
-                    if (mime.indexOf('image') !== -1) {
-                        return _.get(model, 'version.images[0].src');
-                    }
-                    else if (mime.indexOf('video') !== -1) {
-                        return _.get(model, 'version.images[0].meta.thumbnail_small');
-                    }
-                    return '';
                 }
             };
             __decorate([

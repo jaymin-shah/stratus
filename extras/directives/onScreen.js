@@ -161,6 +161,7 @@
         // FIXME: This needs to be converted to the new event structure.
         // Ensure OnScroll is listening
         Stratus.Internals.OnScroll()
+
         Stratus.Environment.on('change:viewPortChange', calculate)
         Stratus.Environment.on('change:lastScroll', function () {
           // If no scrolling has occurred remain false
