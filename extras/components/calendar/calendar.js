@@ -6,7 +6,7 @@
 // TODO later when implementing new data source types, refer to https://fullcalendar.io/docs/google-calendar as a plugin example
 
 // credit to https://github.com/leonaard/icalendar2fullcalendar for ics conversion
-/* global define */
+/* global define, boot */
 
 /**
  * @typedef {Object} fullcalendarCore
@@ -138,32 +138,40 @@
       $scope.endRange = moment()
       $scope.customViews = {} // Filled by the customPlugin to hold any custom Views currently displayed for storage and reuse
 
+      /**
+       * This function builds the URL for a CSS Resource based on configuration path.
+       *
+       * @param resource
+       * @returns {*}
+       */
+      const resourceUrl = (resource) => Stratus.BaseUrl + boot.configuration.paths[resource].replace(/\.[^.]+$/, '.css')
+
       // CSS Loading depends on Views possible
 
       // Base CSS always required
       // noinspection JSIgnoredPromiseFromCall
       Stratus.Internals.CssLoader(
-        `${Stratus.BaseUrl}${Stratus.BundlePath}node_modules/@fullcalendar/core/main${min}.css`
+        resourceUrl('@fullcalendar/core')
       )
       // Check if dayGrid is used and load the CSS. TODO load here as well rather than at init
       if ($scope.options.possibleViews.some(r => ['dayGrid', 'dayGridDay', 'dayGridWeek', 'dayGridMonth'].includes(r))) {
         // noinspection JSIgnoredPromiseFromCall
         Stratus.Internals.CssLoader(
-          `${Stratus.BaseUrl}${Stratus.BundlePath}node_modules/@fullcalendar/daygrid/main${min}.css`
+          resourceUrl('@fullcalendar/daygrid')
         )
       }
       // Check if timeGrid is used and load the CSS. TODO load here as well rather than at init
       if ($scope.options.possibleViews.some(r => ['timeGrid', 'timeGridDay', 'timeGridWeek'].includes(r))) {
         // noinspection JSIgnoredPromiseFromCall
         Stratus.Internals.CssLoader(
-          `${Stratus.BaseUrl}${Stratus.BundlePath}node_modules/@fullcalendar/timegrid/main${min}.css`
+          resourceUrl('@fullcalendar/timegrid')
         )
       }
       // Check if dayGrid is used and load the CSS. TODO load here as well rather than at init
       if ($scope.options.possibleViews.some(r => ['list', 'listDay', 'listWeek', 'listMonth', 'listYear'].includes(r))) {
         // noinspection JSIgnoredPromiseFromCall
         Stratus.Internals.CssLoader(
-          `${Stratus.BaseUrl}${Stratus.BundlePath}node_modules/@fullcalendar/list/main${min}.css`
+          resourceUrl('@fullcalendar/list')
         )
       }
 
@@ -208,7 +216,7 @@
           fullUrl = `https://cors-anywhere.herokuapp.com/${url}`
         }
 
-        let response = await $http.get(fullUrl)
+        const response = await $http.get(fullUrl)
         if (!Stratus.Environment.get('production')) {
           console.log('fetched the events from:', url)
         }
@@ -260,9 +268,9 @@
           bindToController: true,
           controllerAs: 'ctrl',
           controller: function () { // $scope, $mdDialog unused
-            let dc = this
+            const dc = this
 
-            let close = function close () {
+            const close = function close () {
               if ($mdDialog) {
                 $mdDialog.hide()
               }
@@ -284,8 +292,8 @@
               if (
                 dc.eventData &&
                 !dc.eventData.descriptionHTML &&
-                dc.eventData.constructor.prototype.hasOwnProperty('extendedProps') &&
-                dc.eventData.extendedProps.hasOwnProperty('description')
+                Object.prototype.hasOwnProperty.call(dc.eventData.constructor.prototype, 'extendedProps') &&
+                  Object.prototype.hasOwnProperty.call(dc.eventData.extendedProps, 'description')
               ) {
                 dc.eventData.descriptionHTML = $sce.trustAsHtml(dc.eventData.extendedProps.description)
               }
@@ -304,8 +312,8 @@
         if ($scope.options.header) {
           return
         }
-        let headerLeft = 'prev,next today'
-        let headerCenter = 'title'
+        const headerLeft = 'prev,next today'
+        const headerCenter = 'title'
         let headerRight = 'month,weekGrid,dayGrid'
         // All this is assuming tha the default Header is not customized
         if (_.isArray($scope.options.possibleViews)) {

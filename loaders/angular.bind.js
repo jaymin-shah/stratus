@@ -3,20 +3,20 @@
 /**
  * @constructor
  */
-Stratus.Loaders.Angular = function () {
+Stratus.Loaders.Angular = () => {
   let requirement
   let nodes
   let injection
 
   // This contains references for the auto-loader below
-  let container = {
+  const container = {
     requirement: [],
     module: [],
     stylesheet: []
   }
 
   // TODO: Add references to this prototype in the tree builder, accordingly
-  let injector = function (injection) {
+  const injector = function (injection) {
     injection = injection || {}
     _.each(injection, function (element, attribute) {
       container[attribute] = container[attribute] || []
@@ -49,7 +49,7 @@ Stratus.Loaders.Angular = function () {
           nodes = document.querySelectorAll(selector)
           element.length += nodes.length
           if (nodes.length) {
-            let name = selector.replace(/^\[/, '').replace(/]$/, '')
+            const name = selector.replace(/^\[/, '').replace(/]$/, '')
             requirement = element.namespace + _.lcfirst(_.kebabToCamel(name.replace(/^stratus/, '').replace(/^ng/, '')))
             if (_.has(boot.configuration.paths, requirement)) {
               injection = {
@@ -66,10 +66,10 @@ Stratus.Loaders.Angular = function () {
         nodes = document.querySelectorAll(element.selector)
         element.length = nodes.length
         if (nodes.length) {
-          let attribute = element.selector.replace(/^\[/, '').replace(/]$/, '')
+          const attribute = element.selector.replace(/^\[/, '').replace(/]$/, '')
           if (attribute && element.namespace) {
             _.each(nodes, function (node) {
-              let name = node.getAttribute(attribute)
+              const name = node.getAttribute(attribute)
               if (name) {
                 requirement = element.namespace + _.lcfirst(_.kebabToCamel(name.replace('Stratus', '')))
                 if (_.has(boot.configuration.paths, requirement)) {
@@ -152,7 +152,7 @@ Stratus.Loaders.Angular = function () {
     require(container.requirement, function () {
       // App Reference
       angular.module('stratusApp', _.union(Object.keys(Stratus.Modules), container.module)).config(['$sceDelegateProvider', function ($sceDelegateProvider) {
-        let whitelist = [
+        const whitelist = [
           'self',
           'http://*.sitetheory.io/**',
           'https://*.sitetheory.io/**'
@@ -175,7 +175,7 @@ Stratus.Loaders.Angular = function () {
         jQuery.FroalaEditor.DEFAULTS.key = Stratus.Api.Froala
 
         // 'insertOrderedList', 'insertUnorderedList', 'createLink', 'table'
-        let buttons = [
+        const buttons = [
           'bold', 'italic', 'underline', 'strikeThrough', 'subscript', 'superscript', '|', 'formatBlock',
           'blockStyle', 'inlineStyle', 'paragraphStyle', 'paragraphFormat', 'align', 'formatOL',
           'formatUL', 'outdent', 'indent', '|', 'insertLink', 'insertImage', 'insertVideo', 'insertFile',
@@ -254,36 +254,37 @@ Stratus.Loaders.Angular = function () {
 
       // Load CSS
       // TODO: Move this reference to the stylesheets block above
-      let css = container.stylesheet
-      let cssLoaded = Stratus('link[satisfies]').map(function (node) {
+      const css = container.stylesheet
+      const cssLoaded = Stratus('link[satisfies]').map(function (node) {
         return node.getAttribute('satisfies')
       })
-      if (!_.contains(cssLoaded, 'angular-material.css')) {
+      if (!_.contains(cssLoaded, 'angular-material.css') && 'angular-material' in boot.configuration.paths) {
         css.push(
-          Stratus.BaseUrl + Stratus.BundlePath + 'node_modules/angular-material/angular-material' + (Stratus.Environment.get('production') ? '.min' : '') + '.css'
+          Stratus.BaseUrl + boot.configuration.paths['angular-material'].replace(/\.[^.]+$/, '.css')
         )
       }
       if (Stratus.Directives.Froala || Stratus('[froala]').length) {
-        [
-          // FIXME this is sitetheory only
+        const froalaPath = boot.configuration.paths['froala'].replace(/\/[^/]+\/?[^/]+\/?$/, '')
+        _.each([
+        // FIXME this is sitetheory only
           Stratus.BaseUrl + 'sitetheorycore/css/sitetheory.codemirror.css',
-          Stratus.BaseUrl + Stratus.BundlePath + 'node_modules/codemirror/lib/codemirror.css',
-          Stratus.BaseUrl + Stratus.BundlePath + 'node_modules/froala-editor/css/froala_editor.min.css',
-          Stratus.BaseUrl + Stratus.BundlePath + 'node_modules/froala-editor/css/froala_style.min.css',
-          Stratus.BaseUrl + Stratus.BundlePath + 'node_modules/froala-editor/css/plugins/code_view.min.css',
-          Stratus.BaseUrl + Stratus.BundlePath + 'node_modules/froala-editor/css/plugins/draggable.min.css',
-          Stratus.BaseUrl + Stratus.BundlePath + 'node_modules/froala-editor/css/plugins/file.min.css',
-          Stratus.BaseUrl + Stratus.BundlePath + 'node_modules/froala-editor/css/plugins/fullscreen.min.css',
-          Stratus.BaseUrl + Stratus.BundlePath + 'node_modules/froala-editor/css/plugins/help.min.css',
-          Stratus.BaseUrl + Stratus.BundlePath + 'node_modules/froala-editor/css/plugins/image.min.css',
-          Stratus.BaseUrl + Stratus.BundlePath + 'node_modules/froala-editor/css/plugins/image_manager.min.css',
-          Stratus.BaseUrl + Stratus.BundlePath + 'node_modules/froala-editor/css/plugins/quick_insert.min.css',
-          Stratus.BaseUrl + Stratus.BundlePath + 'node_modules/froala-editor/css/plugins/special_characters.min.css',
-          Stratus.BaseUrl + Stratus.BundlePath + 'node_modules/froala-editor/css/plugins/table.min.css',
-          Stratus.BaseUrl + Stratus.BundlePath + 'node_modules/froala-editor/css/plugins/video.min.css'
-        ].forEach(function (stylesheet) {
-          css.push(stylesheet)
-        })
+          Stratus.BaseUrl + boot.configuration.paths['codemirror'].replace(/\/([^/]+)\/?$/, '') + '/codemirror.css',
+          Stratus.BaseUrl + froalaPath + '/css/froala_editor.min.css',
+          Stratus.BaseUrl + froalaPath + '/css/froala_style.min.css',
+          Stratus.BaseUrl + froalaPath + '/css/plugins/code_view.min.css',
+          Stratus.BaseUrl + froalaPath + '/css/plugins/draggable.min.css',
+          Stratus.BaseUrl + froalaPath + '/css/plugins/file.min.css',
+          Stratus.BaseUrl + froalaPath + '/css/plugins/fullscreen.min.css',
+          Stratus.BaseUrl + froalaPath + '/css/plugins/help.min.css',
+          Stratus.BaseUrl + froalaPath + '/css/plugins/image.min.css',
+          Stratus.BaseUrl + froalaPath + '/css/plugins/image_manager.min.css',
+          Stratus.BaseUrl + froalaPath + '/css/plugins/quick_insert.min.css',
+          Stratus.BaseUrl + froalaPath + '/css/plugins/special_characters.min.css',
+          Stratus.BaseUrl + froalaPath + '/css/plugins/table.min.css',
+          Stratus.BaseUrl + froalaPath + '/css/plugins/video.min.css'
+        ],
+        stylesheet => css.push(stylesheet)
+        )
       }
 
       // FIXME: What is above this line is total crap

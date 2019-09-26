@@ -1,44 +1,40 @@
 // Angular Core
-import {ChangeDetectionStrategy, ChangeDetectorRef, Component, Inject, Injectable, OnInit, Output} from '@angular/core';
-import {HttpResponse} from '@angular/common/http';
-import {FormBuilder, FormControl, FormGroup} from '@angular/forms';
+import {ChangeDetectionStrategy, ChangeDetectorRef, Component} from '@angular/core'
 
 // CDK
-import {ArrayDataSource} from '@angular/cdk/collections';
-import {CdkDragDrop, moveItemInArray} from '@angular/cdk/drag-drop';
-import {NestedTreeControl} from '@angular/cdk/tree';
-
-// Material
-import {MAT_DIALOG_DATA, MatDialog, MatDialogRef} from '@angular/material/dialog';
+import {ArrayDataSource} from '@angular/cdk/collections'
+import {CdkDragDrop, moveItemInArray} from '@angular/cdk/drag-drop'
+import {NestedTreeControl} from '@angular/cdk/tree'
 
 // SVG Icons
-import {DomSanitizer, ɵDomSanitizerImpl} from '@angular/platform-browser';
-import {MatIconRegistry} from '@angular/material/icon';
+import {DomSanitizer} from '@angular/platform-browser'
+import {MatIconRegistry} from '@angular/material/icon'
 
 // RXJS
-import {Observable, Subject, Subscriber} from 'rxjs';
-import {map, startWith, switchMap, debounceTime, tap, finalize} from 'rxjs/operators';
-import {SubjectSubscriber} from 'rxjs/internal/Subject';
+import {Observable, Subject, Subscriber} from 'rxjs'
 
 // External
-import * as Stratus from 'stratus';
-import * as _ from 'lodash';
+import * as Stratus from 'stratus'
+import * as _ from 'lodash'
 
-// Services
-import {BackendService} from '@stratus/angular/backend.service';
-
-// Local Setup
-const localDir = '/assets/1/0/bundles/sitetheorystratus/stratus/src/angular';
-const systemDir = '@stratus/angular';
-const moduleName = 'tree';
-
+// Data Types
 export interface Node {
-    model: any;
-    child: Node[];
+    id: number
+    model: any
+    children: Node[]
+    expanded: boolean
 }
 
 export interface NodeMap {
-    [key: number]: Node;
+    [key: number]: Node
+}
+
+export interface KeyMap {
+    [key: string]: boolean
+}
+
+export interface ElementMap {
+    [key: string]: HTMLElement
 }
 
 // export interface Model {
@@ -46,90 +42,16 @@ export interface NodeMap {
 //     data: object;
 // }
 
-export interface DialogData {
-    id: number;
-    name: string;
-    target: string;
-    content: any;
-    url: string;
-    model: any;
-    collection: any;
-    parent: any;
-    nestParent: any;
-}
-
-@Component({
-    selector: 'sa-tree-dialog',
-    templateUrl: `${localDir}/${moduleName}/${moduleName}.dialog.html`,
-    changeDetection: ChangeDetectionStrategy.OnPush
-})
-export class TreeDialogComponent implements OnInit {
-
-    filteredOptions: any[];
-    dialogForm: FormGroup;
-    isLoading = false;
-    lastSelectorQuery: string;
-
-    constructor(
-        public dialogRef: MatDialogRef<TreeDialogComponent>,
-        @Inject(MAT_DIALOG_DATA) public data: DialogData,
-        private fb: FormBuilder,
-        private backend: BackendService
-    ) {}
-
-    ngOnInit() {
-        this.dialogForm = this.fb.group({
-            selectorInput: this.data.content
-        });
-
-        this.dialogForm
-            .get('selectorInput')
-            .valueChanges
-            .pipe(
-                debounceTime(300),
-                tap(() => this.isLoading = true),
-                switchMap(value => {
-                        if (_.isString(value)) {
-                            this.lastSelectorQuery = `/Api/Content?q=${value}`;
-                        } else {
-                            this.data.content = value;
-                            this.data.url = null;
-                        }
-                        return this.backend.get(this.lastSelectorQuery)
-                            .pipe(
-                                finalize(() => this.isLoading = false),
-                            );
-                    }
-                )
-            )
-            .subscribe(response => {
-                if (!response.ok || response.status !== 200 || _.isEmpty(response.body)) {
-                    return this.filteredOptions = [];
-                }
-                const payload = _.get(response.body, 'payload') || response.body;
-                if (_.isEmpty(payload) || !Array.isArray(payload)) {
-                    return this.filteredOptions = [];
-                }
-                return this.filteredOptions = payload;
-            });
-    }
-
-    onCancelClick(): void {
-        this.dialogRef.close();
-    }
-
-    displayOption(option: any) {
-        if (option) {
-            return _.get(option, 'version.title');
-        }
-    }
-}
+// Local Setup
+const localDir = '/assets/1/0/bundles/sitetheorystratus/stratus/src/angular'
+const systemDir = '@stratus/angular'
+const moduleName = 'tree'
 
 /**
- * @title Tree with Nested Drag&Drop
+ * @title Tree with Nested Drag & Drop
  */
 @Component({
-    selector: 'sa-tree',
+    selector: `sa-${moduleName}`,
     templateUrl: `${localDir}/${moduleName}/${moduleName}.component.html`,
     // templateUrl: `${systemDir}/${moduleName}/${moduleName}.component.html`,
     // FIXME: This doesn't work, as it seems Angular attempts to use a System.js import instead of their own, so it will
@@ -143,192 +65,357 @@ export class TreeDialogComponent implements OnInit {
 export class TreeComponent {
 
     // Basic Component Settings
-    title = 'tree-dnd';
-    uid: string;
+    title = moduleName + '_component'
+    uid: string
 
     // Dependencies
-    _: any;
-
-    // Forms
-    selectCtrl = new FormControl();
+    _: any
 
     // Stratus Data Connectivity
-    registry = new Stratus.Data.Registry();
-    fetched: any;
-    data: any;
-    collection: any;
-    model: any;
+    registry = new Stratus.Data.Registry()
+    fetched: any
+    data: any
+    collection: any
+    model: any
 
     // Observable Connection
-    dataSub: Observable<[]>;
-    onChange = new Subject();
-    subscriber: Subscriber<any>;
+    dataSub: Observable<[]>
+    onChange = new Subject()
+    subscriber: Subscriber<any>
+    unsettled = false
+
+    // Drag & Drop
+    dropLists: string[] = []
+    // dropLists: HTMLElement[] = []
+    dropListIdMap: KeyMap = {}
+    dropListMap: ElementMap = {}
+    expandedNodeSet = new Set<string>()
+    dragging = false
+    expandTimeout: any
+    expandDelay = 1000
 
     // Tree Specific
-    treeMap: NodeMap;
-    // treeControl = new NestedTreeControl <any> (node => this.getChild(node));
-    treeControl = new NestedTreeControl <any> (node => node.child || []);
-    // hasChild = (index: number, node: any) => this.getChild(node).length > 0;
-    hasChild = (index: number, node: any) => node.child && node.child.length > 0;
+    tree: Node[]
+    treeMap: NodeMap
+    dataSource: ArrayDataSource<Node>
+    // treeControl = new NestedTreeControl <any> (node => this.getChildren(node))
+    treeControl = new NestedTreeControl<any>((node: Node) => node.children || [])
 
-    constructor(
-        public iconRegistry: MatIconRegistry,
-        public sanitizer: DomSanitizer,
-        public dialog: MatDialog,
-        private ref: ChangeDetectorRef
-    ) {
+    // Methods
+    // hasChild = (index: number, node: any) => this.getChildren(node).length > 0;
+    // hasChild = (index: number, node: any) => node.children && node.children.length > 0
+
+    constructor(public iconRegistry: MatIconRegistry, public sanitizer: DomSanitizer, private ref: ChangeDetectorRef) {
 
         // Initialization
-        this.uid = _.uniqueId('sa_tree_component_');
-        Stratus.Instances[this.uid] = this;
+        this.uid = _.uniqueId(`sa_${moduleName}_component_`)
+        Stratus.Instances[this.uid] = this
 
         // Dependencies
-        this._ = _;
+        this._ = _
 
         // SVG Icons
         iconRegistry.addSvgIcon(
             'delete',
             sanitizer.bypassSecurityTrustResourceUrl('/Api/Resource?path=@SitetheoryCoreBundle:images/icons/actionButtons/delete.svg')
-        );
+        )
 
         // TODO: Assess & Possibly Remove when the System.js ecosystem is complete
         // Load Component CSS until System.js can import CSS properly.
-        Stratus.Internals.CssLoader(`${localDir}/${moduleName}/${moduleName}.component.css`);
+        Stratus.Internals.CssLoader(`${localDir}/${moduleName}/${moduleName}.component.css`)
 
         // Hoist Context
-        const that = this;
+        const that = this
 
         // Data Connections
         this.fetchData()
             .then((data: any) => {
                 if (!data.on) {
-                    console.warn('Unable to bind data from Registry!');
-                    return;
+                    console.warn('Unable to bind data from Registry!')
+                    return
                 }
                 // Manually render upon data change
                 // ref.detach();
-                data.on('change', () => {
-                    if (!data.completed) {
-                        return;
+                const onDataChange = () => {
+                    if (that.unsettled || !data.completed) {
+                        return
                     }
-                    // that.onDataChange(ref);
-                    // that.dataDefer(that.subscriber);
-                    ref.detectChanges();
-                });
-                // that.onDataChange(ref);
-                // that.dataDefer(that.subscriber);
-                ref.detectChanges();
-            });
+                    that.dataDefer(that.subscriber)
+                    ref.detectChanges()
+                }
+                data.on('change', onDataChange)
+                onDataChange()
+            })
 
         // Handling Pipes with Promises
-        this.dataSub = new Observable((subscriber) => this.dataDefer(subscriber));
+        this.dataSub = new Observable((subscriber: Subscriber<any>) => this.dataDefer(subscriber))
+
+        // Initialize Drop List Map
+        this.dropListIdMap[`${this.uid}_parent_drop_list`] = true
+        this.trackDropLists()
     }
 
-    drop(event: CdkDragDrop<string[]>) {
-        const tree = this.dataRef();
-        if (!tree || !tree.length) {
-            return;
-        }
-        console.log('tree drop:', event);
-        // TODO: Allow Multi-Level Priorities
-        // moveItemInArray(tree, event.previousIndex, event.currentIndex);
-        // let priority = 0;
-        // _.each(tree, (node) => {
-        //     if (!node.model || !node.model.set) {
-        //         return;
-        //     }
-        //     const newPosition = priority++;
-        //     if (node.model.get('priority') === newPosition) {
-        //         return;
-        //     }
-        //     node.model.set('priority', newPosition);
-        //     node.model.save();
-        // });
-        // this.subscriber.next(tree);
-        // this.ref.detectChanges();
-        // this.collection.throttleTrigger('change');
+    public remove(model: any) {
+        // const models = this.dataRef()
+        // if (!models || !models.length) {
+        //     return
+        // }
+        // // TODO: Handle Multi-Level Targeting
+        // const index: number = models.indexOf(model)
+        // if (index === -1) {
+        //     return
+        // }
+        // models.splice(index, 1)
+        // this.model.trigger('change')
     }
 
-    remove(model: any) {
-        const models = this.dataRef();
-        if (!models || !models.length) {
-            return;
-        }
-        // TODO: Handle Multi-Level Targeting
-        const index: number = models.indexOf(model);
+    public removeNode(list: Node[], node: Node): boolean {
+        const index: number = list.indexOf(node)
         if (index === -1) {
-            return;
+            return false
         }
-        models.splice(index, 1);
-        this.model.trigger('change');
+        list.splice(index, 1)
+        return true
+    }
+
+    public nodeIsEqual(node: Node | null, other: Node | null): boolean {
+        if (!node || !other) {
+            return node === other
+        }
+        return node.id === other.id
     }
 
     // Data Connections
-    async fetchData(): Promise<any> {
+    public async fetchData(): Promise<any> {
         if (!this.fetched) {
-            this.fetched = this.registry.fetch(Stratus.Select('#content-menu-primary'), this);
+            this.fetched = this.registry.fetch(Stratus.Select('#content-menu-primary'), this)
         }
-        return this.fetched;
+        return this.fetched
     }
 
-    dataDefer(subscriber: Subscriber<any>) {
-        this.subscriber = subscriber;
-        const tree = this.dataRef();
+    private dataDefer(subscriber: Subscriber<any>) {
+        this.subscriber = subscriber
+        const tree = this.dataRef(true)
         if (tree && tree.length) {
-            subscriber.next(tree);
-            return;
+            subscriber.next(tree)
+            return
         }
-        setTimeout(() => this.dataDefer(subscriber), 500);
+        setTimeout(() => this.dataDefer(subscriber), 200)
     }
 
-    dataRef(): Array<Node> {
+    private dataRef(force: boolean = false): Node[] {
         if (!this.collection) {
-            return [];
+            return []
         }
-        const models = this.collection.models;
+        if (!force && this.tree && this.tree.length > 0) {
+            return this.tree
+        }
+        // TODO: Break away from the registry here...  It's not responsive enough.
+        let models = this.collection.models
         if (!models || !_.isArray(models)) {
-            return [];
+            return []
         }
+        models = _.sortBy(models, ['data.priority'])
         // Convert Collection Models to Nested Tree to optimize references
-        this.treeMap = {};
-        const that = this;
-        const tree: Array<Node> = [];
-        _.each(models, model => {
-            const modelId = _.get(model, 'data.id');
-            const parentId = _.get(model, 'data.nestParent.id');
-            if (!_.has(that.treeMap, modelId)) {
-                that.treeMap[modelId] = {
+        this.treeMap = {}
+        this.tree = []
+        _.each(models, (model: any) => {
+            const modelId = _.get(model, 'data.id')
+            const parentId = _.get(model, 'data.nestParent.id')
+            this.dropListIdMap[`${this.uid}_node_${modelId}_drop_list`] = true
+            if (!_.has(this.treeMap, modelId)) {
+                this.treeMap[modelId] = {
+                    id: modelId,
                     model: null,
-                    child: []
-                };
-            }
-            that.treeMap[modelId].model = model;
-            if (!parentId) {
-                tree.push(
-                    that.treeMap[modelId]
-                );
-            } else {
-                if (!_.has(that.treeMap, parentId)) {
-                    that.treeMap[parentId] = {
-                        model: null,
-                        child: []
-                    };
+                    children: [],
+                    expanded: true
                 }
-                that.treeMap[parentId].child.push(
-                    that.treeMap[modelId]
-                );
             }
-        });
-        return tree;
+            this.treeMap[modelId].model = model
+            if (!parentId) {
+                this.tree.push(
+                    this.treeMap[modelId]
+                )
+            } else {
+                if (!_.has(this.treeMap, parentId)) {
+                    this.treeMap[parentId] = {
+                        id: parentId,
+                        model: null,
+                        children: [],
+                        expanded: true
+                    }
+                }
+                this.treeMap[parentId].children.push(
+                    this.treeMap[modelId]
+                )
+            }
+        })
+        this.trackDropLists()
+        return this.tree
     }
 
-    onDataChange(ref: ChangeDetectorRef) {
-        // that.prioritize();
-        this.dataDefer(this.subscriber);
-        ref.detectChanges();
+    private trackDropLists() {
+        this.dropLists = []
+        _.each(this.dropListIdMap, (value: boolean, key: string) => {
+            if (!value) {
+                return
+            }
+            const cached = key in this.dropListMap
+            const element = cached ? this.dropListMap[key] : document.getElementById(key)
+            if (!element) {
+                return
+            }
+            this.dropLists.push(key)
+            // this.dropLists.push(element)
+            if (cached) {
+                return
+            }
+            this.dropListMap[key] = element
+        })
     }
 
-    // getChild(model: any): any[] {
+    /**
+     * Experimental - opening tree nodes as you drag over them
+     */
+    // public onDragStart() {
+    //     this.dragging = true
+    // }
+    //
+    // public onDragEnd() {
+    //     this.dragging = false
+    // }
+    //
+    // public onDragHover(node: Node) {
+    //     if (this.dragging) {
+    //         clearTimeout(this.expandTimeout)
+    //         this.expandTimeout = setTimeout(() => {
+    //             this.treeControl.expand(node)
+    //         }, this.expandDelay)
+    //     }
+    // }
+    //
+    // public onDragHoverEnd() {
+    //     if (this.dragging) {
+    //         clearTimeout(this.expandTimeout)
+    //     }
+    // }
+
+    // public get connectedDropListsIds(): string[] {
+    //     // We reverse ids here to respect items nesting hierarchy
+    //     return this.getIdsRecursive(this.parentItem).reverse()
+    // }
+
+    public onDragDrop(event: CdkDragDrop<any>) {
+        // ignore drops outside of the tree
+        if (!event.isPointerOverContainer) {
+            return
+        }
+        // if (!this.dataSource) {
+        //     return
+        // }
+
+        // Gather Target (Dropped) Node
+        const targetNode: Node | null = event.item.data
+        if (!targetNode) {
+            return
+        }
+
+        // Determine Parents
+        const parentNode: Node | null = event.container.data
+        const pastParentNode: Node | null = event.previousContainer.data
+
+        // Determine Placement
+        const tree: Node[] | null = parentNode ? parentNode.children : this.dataRef()
+        if (!tree) {
+            return
+        }
+
+        // Disable Listeners
+        this.unsettled = true
+
+        // Debug Data'
+        /* *
+        console.group('onDragDrop()')
+        _.each(
+            [
+                `model drop: ${targetNode.model.get('name')}`,
+                `list shift: ${event.container.element.nativeElement.id} -> ${event.previousContainer.element.nativeElement.id}`,
+                `index change: ${event.previousIndex} -> ${event.currentIndex}`,
+                `current priority: ${targetNode.model.get('priority')}`,
+            ],
+            (message) => console.log(message)
+        )
+        /* */
+
+        // Handle Parent Change
+        if (!this.nodeIsEqual(parentNode, pastParentNode)) {
+            if (parentNode) {
+                parentNode.children.push(targetNode)
+            }
+            if (pastParentNode) {
+                this.removeNode(pastParentNode.children, targetNode)
+            }
+            const parentPatch = {}
+            if (parentNode) {
+                [
+                    'id',
+                    'name'
+                ].forEach((key) => {
+                    const value = _.get(parentNode, `model.data.${key}`)
+                    if (!value) {
+                        return
+                    }
+                    _.set(parentPatch, key, value)
+                })
+            }
+            targetNode.model.set('nestParent', !parentNode ? parentNode : parentPatch)
+            // console.log(`new parent: ${targetNode.model.get('nestParent.name') || null}`)
+        }
+
+        // Set Priority
+        moveItemInArray(tree, event.previousIndex, event.currentIndex)
+        let priority = 0
+        _.each(tree, (node) => {
+            if (!node.model || !node.model.set) {
+                return
+            }
+            node.model.set('priority', ++priority)
+        })
+
+        // Debug Data
+        /* *
+        console.log('new priority:', targetNode.model.get('priority'))
+        console.groupEnd()
+        /* */
+
+        // Start XHR
+        targetNode.model.save()
+
+        // Disable Listeners
+        this.unsettled = false
+
+        // update pipe
+        // this.subscriber.next(tree)
+        // this.ref.detectChanges()
+
+        // propagate change
+        // this.collection.throttleTrigger('change')
+    }
+
+    // private canBeDropped(event: CdkDragDrop<any, any>): boolean {
+    //     const movingNode: any = event.item.data
+    //
+    //     return event.previousContainer.id !== event.container.id
+    //         && this.isNotSelfDrop(event)
+    //         && !this.hasChild(movingNode)
+    // }
+
+    // private isNotSelfDrop(event: CdkDragDrop<any> | CdkDragEnter<any> | CdkDragExit<any>): boolean {
+    //     console.log('isNotSelfDrop:', event.item.data, event.item.data)
+    //     return !_.isEqual(event.item.data, event.item.data)
+    // }
+
+    // getChildren(model: any): any[] {
     //     if (!model) {
     //         return [];
     //     }
@@ -339,51 +426,4 @@ export class TreeComponent {
     //         return modelId && parentId && modelId === parentId;
     //     })
     // }
-
-    openDialog(model: any): void {
-        if (!model || !_.has(model, 'data')) {
-            return;
-        }
-        const dialogRef = this.dialog.open(TreeDialogComponent, {
-            width: '250px',
-            data: {
-                id: model.data.id || null,
-                name: model.data.name || '',
-                target: model.data.url ? 'url' : 'content',
-                content: model.data.content || null,
-                url: model.data.url || null,
-                priority: model.data.priority || 0,
-                model: model || null,
-                collection: this.collection || null,
-                parent: model.data.parent || null,
-                nestParent: model.data.nestParent || null,
-            }
-        });
-        this.ref.detectChanges();
-
-        dialogRef.afterClosed().subscribe(result => {
-            if (!result || _.isEmpty(result)) {
-                return;
-            }
-            [
-                'name',
-                'content',
-                'url',
-                'priority'
-            ].forEach(attr => {
-                if (!_.has(result, attr)) {
-                    return;
-                }
-                // Normalize Content
-                if ('content' === attr) {
-                    const value = _.get(result, attr);
-                    model.set(attr, !value ? null : { id: _.get(value, 'id') });
-                    return;
-                }
-                model.set(attr, _.get(result, attr));
-            });
-            model.save();
-            // this.ref.detectChanges();
-        });
-    }
 }

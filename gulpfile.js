@@ -76,9 +76,9 @@ const location = {
       'umd/header.js',
       'source/prototype.js',
       'source/external.js',
+      'source/selector.js',
       'source/prototypes.js',
       'source/internals.js',
-      'source/selector.js',
       'loaders/angular.bind.js',
       'source/core.js',
       'umd/footer.js'
@@ -269,16 +269,16 @@ function distBoot () {
     .pipe(concat(location.boot.output))
     .pipe(dest('.'))
 }
+/* *
 function distStratus () {
   return src(location.stratus.source)
-    /* *
-    .pipe(debug({
-      title: 'Build Stratus:'
-    }))
-    /* */
+    // .pipe(debug({
+    //   title: 'Build Stratus:'
+    // }))
     .pipe(concat(location.stratus.output))
     .pipe(dest('.'))
 }
+/* */
 
 // Mangle Functions
 function cleanMangle () {
@@ -296,10 +296,14 @@ function compressMangle () {
     title: 'Compress Mangle:'
   }))
   /* */
+    // .pipe(sourcemaps.init())
     .pipe(babel(babelSettings))
     .pipe(terser({
       // preserveComments: 'license',
-      mangle: true
+      mangle: true,
+      sourceMap: {
+        url: 'inline'
+      }
     }))
     .pipe(gulpDest('.', {
       ext: '.min.js'
@@ -327,10 +331,14 @@ function compressExternal () {
       title: 'Compress External:'
     }))
     /* */
+    // .pipe(sourcemaps.init())
     .pipe(babel(babelSettings))
     .pipe(terser({
       // preserveComments: 'license',
-      mangle: true
+      mangle: true,
+      sourceMap: {
+        url: 'inline'
+      }
     }))
     .pipe(gulpDest('.', {
       ext: '.min.js'
@@ -354,11 +362,16 @@ function compressPreserve () {
       title: 'Compress Preserve:'
     }))
     /* */
+    // .pipe(sourcemaps.init())
     .pipe(babel(babelSettings))
     .pipe(terser({
       // preserveComments: 'license',
-      mangle: false
+      mangle: false,
+      sourceMap: {
+        url: 'inline'
+      }
     }))
+    // .pipe(sourcemaps.write())
     .pipe(gulpDest('.', {
       ext: '.min.js'
     }))
@@ -504,8 +517,8 @@ exports.clean = parallel(
 )
 exports.lint = lintJS
 exports.dist = parallel(
-  distBoot,
-  distStratus
+  distBoot
+  // distStratus
 )
 
 exports.compileTypeScript = series(cleanTypeScript, compileTypeScript)
