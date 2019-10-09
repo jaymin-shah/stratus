@@ -13,14 +13,15 @@
       'exports',
       'lodash',
       'jquery', // TODO: Remove once phased out appropriately
-      'bowser'
-    ], function (exports, _, jQuery, bowser) {
-      return (root.Stratus = factory(exports, _, jQuery, bowser))
+      'bowser',
+      'bowser-legacy', // TODO: Remove once phased out appropriately
+    ], function (exports, _, jQuery, Bowser, bowser) {
+      return (root.Stratus = factory(exports, _, jQuery, Bowser, bowser))
     })
   } else {
-    root.Stratus = factory(root.exports, root._, root.jQuery, root.bowser)
+    root.Stratus = factory(root.exports, root._, root.jQuery, root.Bowser, root.bowser)
   }
-}(this, function (exports, _, jQuery, bowser) {
+}(this, function (exports, _, jQuery, Bowser, bowser) {
   // Stratus Layer Prototype
   // -----------------------
 
@@ -845,6 +846,10 @@
     }
   })
 
+  // Client Information
+  const browser = Bowser.getParser(window.navigator.userAgent)
+  console.log('Browser Information:', browser)
+
   // Native Selector
   // ---------------
 
@@ -970,7 +975,7 @@
     if (that.selection instanceof window.NodeList) {
       console.warn('Unable to find "' + selector + '" for list:', that.selection)
     } else if (selector) {
-      return Stratus(selector, that.selection)
+      return Stratus.Select(selector, that.selection)
     }
     return null
   }
@@ -1135,7 +1140,7 @@
       console.warn('Unable to find offset for list:', that.selection)
       return null
     }
-    return Stratus(that.selection.parentNode)
+    return Stratus.Select(that.selection.parentNode)
   }
 
   // Stratus Event System
@@ -1921,7 +1926,7 @@
     }
 
     /* Stratus.Events.trigger('alert', profile + JSON.stringify(Stratus.Client)); */
-    Stratus('body').addClass(profile.join(' '))
+    Stratus.Select('body').addClass(profile.join(' '))
   }
 
   // Internal Convoy Dispatcher
@@ -2050,8 +2055,8 @@
       /* Inject Link into Head */
 
       // TODO: Add the ability to prepend or append by a flagged option
-      // Stratus('head').prepend(link);
-      Stratus('head').append(link)
+      // Stratus.Select('head').prepend(link);
+      Stratus.Select('head').append(link)
     })
   }
 
@@ -2221,9 +2226,12 @@
    * @constructor
    */
   Stratus.Internals.LoadEnvironment = function () {
-    const initialLoad = Stratus('body').attr('data-environment')
+    const initialLoad = Stratus.Select('body').attr('data-environment')
     if (initialLoad && typeof initialLoad === 'object' && _.size(initialLoad)) {
       Stratus.Environment.set(initialLoad)
+    }
+    if (Stratus.Client.mobile) {
+      Stratus.Environment.set('viewPort', null)
     }
     // Environment Information
     let passiveEventOptions = false
@@ -2525,7 +2533,7 @@
     // Listen for Scrolling Updates
     // Note: You can't use event.preventDefault() in Passive Events
     const viewPort = Stratus.Select(Stratus.Environment.get('viewPort') || window)
-    const viewPortChangeHandler = _.throttle(function () {
+    const viewPortChangeHandler = function () {
       /* *
       if (!Stratus.Environment.get('production')) {
         console.log('scrolling:', Stratus.Internals.GetScrollDir())
@@ -2535,7 +2543,7 @@
         return
       }
       Stratus.Environment.set('viewPortChange', true)
-    }, 120)
+    }
     viewPort.addEventListener('scroll', viewPortChangeHandler, Stratus.Environment.get('passiveEventOptions'))
     // Resizing can change what's on screen so we need to check the scrolling
     viewPort.addEventListener('resize', viewPortChangeHandler, Stratus.Environment.get('passiveEventOptions'))
@@ -3007,15 +3015,15 @@ Stratus.Internals.Rebase = function (target, base) {
         // Load CSS
         // TODO: Move this reference to the stylesheets block above
         const css = container.stylesheet
-        const cssLoaded = Stratus('link[satisfies]').map(function (node) {
+        const cssLoaded = Stratus.Select('link[satisfies]').map(function (node) {
           return node.getAttribute('satisfies')
         })
         if (!_.contains(cssLoaded, 'angular-material.css') && 'angular-material' in boot.configuration.paths) {
           css.push(
-            Stratus.BaseUrl + boot.configuration.paths['angular-material'].replace(/\.[^.]+$/, '.css')
+            Stratus.BaseUrl + boot.configuration.paths['angular-material'].replace(/\.js$/, '') + '.css'
           )
         }
-        if (Stratus.Directives.Froala || Stratus('[froala]').length) {
+        if (Stratus.Directives.Froala || Stratus.Select('[froala]').length) {
           const froalaPath = boot.configuration.paths['froala'].replace(/\/[^/]+\/?[^/]+\/?$/, '')
           _.each([
             // FIXME this is sitetheory only
@@ -3039,7 +3047,7 @@ Stratus.Internals.Rebase = function (target, base) {
           )
         }
 
-        // FIXME: What is above this line is total crap
+        // FIXME: What is above this line is not great
 
         if (css.length) {
           let counter = 0
@@ -3520,7 +3528,7 @@ Stratus.Internals.Rebase = function (target, base) {
   // On DOM Ready, add browser compatible CSS classes and digest DOM data-entity
   // attributes.
   Stratus.DOM.ready(function () {
-    Stratus('body').removeClass('loaded unloaded').addClass('loading')
+    Stratus.Select('body').removeClass('loaded unloaded').addClass('loading')
     Stratus.Events.trigger('initialize')
   })
 
@@ -3559,13 +3567,13 @@ Stratus.Internals.Rebase = function (target, base) {
     Stratus.Environment.set('quality', quality)
 
     // Handle Classes (for Design Timing)
-    Stratus('body').removeClass('loading unloaded').addClass(`loaded quality-${quality}`)
+    Stratus.Select('body').removeClass('loading unloaded').addClass(`loaded quality-${quality}`)
 
     // Load Angular 8+
     if (!hamlet.isUndefined('System')) {
       require([
         // 'quill',
-        '@stratus/angular/boot'
+        '@stratusjs/angular/boot'
       ])
     }
   })
@@ -3578,7 +3586,7 @@ Stratus.Internals.Rebase = function (target, base) {
   // while providing the user with a confirmation box, if necessary,
   // before close routines are triggered.
   Stratus.DOM.unload(function (event) {
-    Stratus('body').removeClass('loading loaded').addClass('unloaded')
+    Stratus.Select('body').removeClass('loading loaded').addClass('unloaded')
     Stratus.Events.trigger('terminate', event)
     /* *
     if (event.cancelable === true) {

@@ -6,7 +6,6 @@
     "noImplicitAny": true,
     "removeComments": true,
     "preserveConstEnums": true,
-    "sourceMap": true,
     "inlineSourceMap": true,
     "downlevelIteration": true,
     "emitDecoratorMetadata": true,
@@ -24,12 +23,29 @@
       "*": [
         "node_modules/*"
       ],
-      "@stratus/*": [ "src/*" ],
+//      "@stratusjs/*": [
+//        "packages/*"
+//      ],
+      "@stratusjs/angular/*": [
+        "packages/angular/src/*"
+      ],
+      "@stratusjs/boot/*": [
+        "packages/boot/src/*"
+      ],
+      "@stratusjs/core/*": [
+        "packages/core/src/*"
+      ],
+      "@stratusjs/idx/*": [
+        "packages/idx/src/*"
+      ],
+      "@stratusjs/react/*": [
+        "packages/react/src/*"
+      ],
       "stratus": [
         "dist/stratus"
       ],
       "stratus.services.*": [
-        "stratus/services/*"
+        "services/*"
       ],
       "core-js/es7/reflect": [
         "node_modules/core-js/proposals/reflect-metadata"

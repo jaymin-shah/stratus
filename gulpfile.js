@@ -86,12 +86,8 @@ const location = {
     output: 'dist/stratus.js'
   },
   external: {
-    core: [
-      // 'node_modules/requirejs/require.js'
-    ],
-    min: [
-      // 'node_modules/requirejs/require.min.js'
-    ]
+    core: [],
+    min: []
   },
   mangle: {
     core: [
@@ -99,7 +95,7 @@ const location = {
       'extras/normalizers/**/*.js',
       'services/**/*.js',
       'extras/services/**/*.js',
-      'legacy/**/*.js',
+      'packages/*/src/**/*.js',
       'src/**/*.js'
     ],
     min: [
@@ -107,7 +103,7 @@ const location = {
       'extras/normalizers/**/*.min.js',
       'services/**/*.min.js',
       'extras/services/**/*.min.js',
-      'legacy/**/*.min.js',
+      'packages/*/src/**/*.min.js',
       'src/**/*.min.js'
     ]
   },
@@ -142,6 +138,7 @@ const location = {
       'extras/components/**/*.less',
       'directives/**/*.less',
       'extras/directives/**/*.less',
+      'packages/*/src/**/*.less',
       'src/**/*.less'
     ],
     compile: []
@@ -153,6 +150,7 @@ const location = {
       'extras/components/**/*.scss',
       'directives/**/*.scss',
       'extras/directives/**/*.scss',
+      'packages/*/src/**/*.scss',
       'src/**/*.scss'
     ],
     compile: []
@@ -164,6 +162,7 @@ const location = {
       'extras/components/**/*.css',
       'directives/**/*.css',
       'extras/directives/**/*.css',
+      'packages/*/src/**/*.css',
       'src/**/*.css'
     ],
     min: [
@@ -172,9 +171,11 @@ const location = {
       'extras/components/**/*.min.css',
       'directives/**/*.min.css',
       'extras/directives/**/*.min.css',
+      'packages/*/src/**/*.min.css',
       'src/**/*.min.css'
     ],
     nonstandard: [
+      'packages/*/src/**/*.css',
       'src/**/*.css'
     ]
   },
@@ -184,6 +185,7 @@ const location = {
       'extras/components/**/*.coffee',
       'directives/**/*.coffee',
       'extras/directives/**/*.coffee',
+      'packages/*/src/**/*.coffee',
       'src/**/*.coffee'
     ],
     compile: []
@@ -194,6 +196,7 @@ const location = {
       'extras/components/**/*.ts',
       'directives/**/*.ts',
       'extras/directives/**/*.ts',
+      'packages/*/src/**/*.ts',
       'src/**/*.ts'
     ],
     compile: []
@@ -204,6 +207,7 @@ const location = {
       'extras/components/**/*.html',
       'directives/**/*.html',
       'extras/directives/**/*.html',
+      'packages/*/src/**/*.html',
       'src/**/*.html'
     ],
     min: [
@@ -211,6 +215,7 @@ const location = {
       'extras/components/**/*.min.html',
       'directives/**/*.min.html',
       'extras/directives/**/*.min.html',
+      'packages/*/src/**/*.min.html',
       'src/**/*.min.html'
     ]
   }
@@ -223,6 +228,10 @@ function lintJS () {
     '!**/*.min.js',
     '!node_modules/**/*.js',
     '!dist/**/*.js',
+    '!components/**/*.js', // TypeScript supersedes Standard JS
+    '!extras/components/**/*.js', // TypeScript supersedes Standard JS
+    '!packages/**/*.js', // TypeScript supersedes Standard JS
+    '!services/**/*.js', // TypeScript supersedes Standard JS
     '!src/**/*.js', // TypeScript supersedes Standard JS
     '!legacy/**/*.js',
     '!reports/**/*.js',
