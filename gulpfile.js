@@ -65,25 +65,11 @@ const babelSettings = {
 const location = {
   boot: {
     source: [
-      'boot/env.js',
-      'boot/config.js',
-      'boot/init.js'
+      'packages/boot/src/env.js',
+      'packages/boot/src/config.js',
+      'packages/boot/src/init.js'
     ],
-    output: 'dist/boot.js'
-  },
-  stratus: {
-    source: [
-      'umd/header.js',
-      'source/prototype.js',
-      'source/external.js',
-      'source/selector.js',
-      'source/prototypes.js',
-      'source/internals.js',
-      'loaders/angular.bind.js',
-      'source/core.js',
-      'umd/footer.js'
-    ],
-    output: 'dist/stratus.js'
+    output: 'packages/boot/dist/boot.js'
   },
   external: {
     core: [],
@@ -92,131 +78,68 @@ const location = {
   mangle: {
     core: [
       'dist/**/*.js',
-      'extras/normalizers/**/*.js',
-      'services/**/*.js',
-      'extras/services/**/*.js',
-      'packages/*/src/**/*.js',
-      'src/**/*.js'
+      'packages/*/src/**/*.js'
     ],
     min: [
       'dist/**/*.min.js',
-      'extras/normalizers/**/*.min.js',
-      'services/**/*.min.js',
-      'extras/services/**/*.min.js',
-      'packages/*/src/**/*.min.js',
-      'src/**/*.min.js'
+      'packages/*/src/**/*.min.js'
     ]
   },
   preserve: {
     core: [
-      'boot/**/*.js',
-      'components/**/*.js',
-      'extras/components/**/*.js',
-      'controllers/**/*.js',
-      'extras/controllers/**/*.js',
-      'directives/**/*.js',
-      'extras/directives/**/*.js',
-      'filters/**/*.js',
-      'extras/filters/**/*.js'
+      'packages/angularjs/src/**/*.js',
+      'packages/angularjs-extras/src/**/*.js'
     ],
     min: [
-      'boot/**/*.min.js',
-      'components/**/*.min.js',
-      'extras/components/**/*.min.js',
-      'controllers/**/*.min.js',
-      'extras/controllers/**/*.min.js',
-      'directives/**/*.min.js',
-      'extras/directives/**/*.min.js',
-      'filters/**/*.min.js',
-      'extras/filters/**/*.min.js'
+      'packages/angularjs/src/**/*.min.js',
+      'packages/angularjs-extras/src/**/*.min.js'
     ]
   },
   less: {
     core: [
       // 'stratus.less',
-      'components/**/*.less',
-      'extras/components/**/*.less',
-      'directives/**/*.less',
-      'extras/directives/**/*.less',
-      'packages/*/src/**/*.less',
-      'src/**/*.less'
+      'packages/*/src/**/*.less'
     ],
     compile: []
   },
   sass: {
     core: [
       // 'stratus.scss',
-      'components/**/*.scss',
-      'extras/components/**/*.scss',
-      'directives/**/*.scss',
-      'extras/directives/**/*.scss',
-      'packages/*/src/**/*.scss',
-      'src/**/*.scss'
+      'packages/*/src/**/*.scss'
     ],
     compile: []
   },
   css: {
     core: [
       // 'stratus.css',
-      'components/**/*.css',
-      'extras/components/**/*.css',
-      'directives/**/*.css',
-      'extras/directives/**/*.css',
-      'packages/*/src/**/*.css',
-      'src/**/*.css'
+      'packages/*/src/**/*.css'
     ],
     min: [
       // 'stratus.min.css',
-      'components/**/*.min.css',
-      'extras/components/**/*.min.css',
-      'directives/**/*.min.css',
-      'extras/directives/**/*.min.css',
-      'packages/*/src/**/*.min.css',
-      'src/**/*.min.css'
+      'packages/*/src/**/*.min.css'
     ],
     nonstandard: [
-      'packages/*/src/**/*.css',
-      'src/**/*.css'
+      'packages/*/src/**/*.css'
     ]
   },
   coffee: {
     core: [
-      'components/**/*.coffee',
-      'extras/components/**/*.coffee',
-      'directives/**/*.coffee',
-      'extras/directives/**/*.coffee',
-      'packages/*/src/**/*.coffee',
-      'src/**/*.coffee'
+      'packages/*/src/**/*.coffee'
     ],
     compile: []
   },
   typescript: {
     core: [
-      'components/**/*.ts',
-      'extras/components/**/*.ts',
-      'directives/**/*.ts',
-      'extras/directives/**/*.ts',
-      'packages/*/src/**/*.ts',
-      'src/**/*.ts'
+      'packages/*/src/**/*.ts'
     ],
     compile: []
   },
   template: {
     core: [
-      'components/**/*.html',
-      'extras/components/**/*.html',
-      'directives/**/*.html',
-      'extras/directives/**/*.html',
-      'packages/*/src/**/*.html',
-      'src/**/*.html'
+      'packages/*/src/**/*.html'
     ],
     min: [
-      'components/**/*.min.html',
-      'extras/components/**/*.min.html',
-      'directives/**/*.min.html',
-      'extras/directives/**/*.min.html',
-      'packages/*/src/**/*.min.html',
-      'src/**/*.min.html'
+      'packages/*/src/**/*.min.html'
     ]
   }
 }
@@ -228,12 +151,7 @@ function lintJS () {
     '!**/*.min.js',
     '!node_modules/**/*.js',
     '!dist/**/*.js',
-    '!components/**/*.js', // TypeScript supersedes Standard JS
-    '!extras/components/**/*.js', // TypeScript supersedes Standard JS
     '!packages/**/*.js', // TypeScript supersedes Standard JS
-    '!services/**/*.js', // TypeScript supersedes Standard JS
-    '!src/**/*.js', // TypeScript supersedes Standard JS
-    '!legacy/**/*.js',
     '!reports/**/*.js',
     '!umd/**/*.js'
   ])
@@ -278,26 +196,19 @@ function distBoot () {
     .pipe(concat(location.boot.output))
     .pipe(dest('.'))
 }
-/* *
-function distStratus () {
-  return src(location.stratus.source)
-    // .pipe(debug({
-    //   title: 'Build Stratus:'
-    // }))
-    .pipe(concat(location.stratus.output))
-    .pipe(dest('.'))
-}
-/* */
 
 // Mangle Functions
 function cleanMangle () {
   if (!location.mangle.min.length) {
     return Promise.resolve('No files selected.')
   }
-  return del(location.mangle.min)
+  return del(_.union(location.mangle.min, nullify(location.preserve.min)))
 }
 function compressMangle () {
-  return src(_.union(location.mangle.core, nullify(location.mangle.min)), {
+  if (!location.mangle.core.length) {
+    return Promise.resolve('No files selected.')
+  }
+  return src(_.union(location.mangle.core, nullify(location.mangle.min), nullify(location.preserve.core)), {
     base: '.'
   })
   /* *
@@ -360,10 +271,13 @@ function cleanPreserve () {
   if (!location.preserve.min.length) {
     return Promise.resolve('No files selected.')
   }
-  return del(location.preserve.min)
+  return del(_.union(location.preserve.min, nullify(location.mangle.min)))
 }
 function compressPreserve () {
-  return src(_.union(location.preserve.core, nullify(location.preserve.min)), {
+  if (!location.preserve.core.length) {
+    return Promise.resolve('No files selected.')
+  }
+  return src(_.union(location.preserve.core, nullify(location.preserve.min), nullify(location.mangle.min)), {
     base: '.'
   })
     /* *
@@ -395,6 +309,9 @@ const cleanLESS = function () {
   return del(location.less.compile)
 }
 function compileLESS () {
+  if (!location.less.core.length) {
+    return Promise.resolve('No files selected.')
+  }
   return src(_.union(location.less.core, nullify(location.less.compile)), { base: '.' })
   // .pipe(debug({ title: 'Compile LESS:' }))
     .pipe(less({
@@ -414,6 +331,9 @@ function cleanSASS () {
   return del(location.sass.compile)
 }
 function compileSASS () {
+  if (!location.sass.core.length) {
+    return Promise.resolve('No files selected.')
+  }
   return src(_.union(location.sass.core, nullify(location.sass.compile)), { base: '.' })
   // .pipe(debug({ title: 'Compile SASS:' }))
     .pipe(sass.sync().on('error', sass.logError))
@@ -429,6 +349,9 @@ function cleanCSS () {
   return del(location.css.min)
 }
 function compressCSS () {
+  if (!location.css.core.length) {
+    return Promise.resolve('No files selected.')
+  }
   return src(_.union(location.css.core, nullify(location.css.min)), { base: '.' })
   // .pipe(debug({ title: 'Compress CSS:' }))
     .pipe(minCSS({
@@ -448,6 +371,9 @@ function cleanCoffee () {
   return del(location.coffee.compile)
 }
 function compileCoffee () {
+  if (!location.coffee.core.length) {
+    return Promise.resolve('No files selected.')
+  }
   return src(_.union(location.coffee.core, nullify(location.coffee.compile)), { base: '.' })
   // .pipe(debug({ title: 'Compile Coffee:' }))
     .pipe(coffee({}))
@@ -463,6 +389,9 @@ function cleanTypeScript () {
   return del(location.typescript.compile)
 }
 function compileTypeScript () {
+  if (!location.typescript.core.length) {
+    return Promise.resolve('No files selected.')
+  }
   return src(_.union(location.typescript.core, nullify(location.typescript.compile)), { base: '.' })
     // .pipe(debug({ title: 'Compile TypeScript:' }))
     // .pipe(sourcemaps.init())
@@ -480,6 +409,9 @@ const cleanTemplate = function () {
   return del(location.template.min)
 }
 function compressTemplate () {
+  if (!location.template.core.length) {
+    return Promise.resolve('No files selected.')
+  }
   return src(_.union(location.template.core, nullify(location.template.min)), {
     base: '.'
   })
