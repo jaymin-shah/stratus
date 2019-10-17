@@ -14,11 +14,16 @@ import {MatIconRegistry} from '@angular/material/icon'
 import {Observable, Subject, Subscriber} from 'rxjs'
 
 // External
-import * as Stratus from 'stratus'
+import {Stratus} from '@stratusjs/runtime/stratus'
 import * as _ from 'lodash'
 
 // Services
 import {Registry} from '@stratusjs/angularjs/services/registry'
+
+// Force Dependent Services
+import '@stratusjs/angularjs/services/registry'
+import '@stratusjs/angularjs/services/collection'
+import '@stratusjs/angularjs/services/model'
 
 // Data Types
 export interface Node {

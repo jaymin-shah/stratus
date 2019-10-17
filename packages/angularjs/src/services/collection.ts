@@ -2,29 +2,32 @@
 // ------------------
 
 // Runtime
-import * as _ from 'lodash'
-import * as Stratus from 'stratus'
-import * as angular from 'angular'
+import _ from 'lodash'
+import angular from 'angular'
+import {
+    BaseModel,
+    EventManager,
+    Stratus
+} from '@stratusjs/runtime/stratus'
 
 // Modules
 import 'angular-material' // Reliant for $mdToast
-
-// Types
-import {IHttpBackendService} from 'angular'
 
 // Services
 import {Model} from '@stratusjs/angularjs/services/model'
 
 // Stratus Dependencies
 import {ucfirst} from '@stratusjs/core/misc'
+import {getInjector} from '@stratusjs/angularjs/injector'
 
-// TODO: Convert this to plain XHRs
-let http: IHttpBackendService|any = () => {
-    console.error('$$http not loaded!')
-}
-let mdToast: angular.material.IToastService|any = () => {
-    console.error('$$mdToast not loaded!')
-}
+// Angular Dependency Injector
+// let injector = getInjector()
+
+// Angular Services
+// let $http: angular.IHttpService = injector ? injector.get('$http') : null
+let $http: angular.IHttpService
+// let $mdToast: angular.material.IToastService = injector ? injector.get('$mdToast') : null
+let $mdToast: angular.material.IToastService
 
 export interface HttpPrototype {
     headers: any
@@ -33,7 +36,7 @@ export interface HttpPrototype {
     data?: any
 }
 
-export class Collection extends Stratus.Prototypes.EventManager {
+export class Collection extends EventManager {
     // Base Information
     name = 'Collection'
 
@@ -45,10 +48,12 @@ export class Collection extends Stratus.Prototypes.EventManager {
     qualifier = '' // ng-if
     decay = 0
     urlRoot = '/Api'
+    targetSuffix?: string = null
+    serviceId?: number = null
 
     // Infrastructure
-    header = new Stratus.Prototypes.Model()
-    meta = new Stratus.Prototypes.Model()
+    header = new BaseModel()
+    meta = new BaseModel()
     model = Model
     models: any = []
     types: any = []
@@ -132,8 +137,8 @@ export class Collection extends Stratus.Prototypes.EventManager {
         const that = this
         const str: string[] = []
         obj = obj || {}
-        angular.forEach(obj, (value: any, key: any) => {
-            if (angular.isObject(value)) {
+        _.forEach(obj, (value: any, key: any) => {
+            if (_.isObject(value)) {
                 if (chain) {
                     key = chain + '[' + key + ']'
                 }
@@ -192,9 +197,9 @@ export class Collection extends Stratus.Prototypes.EventManager {
                 url: that.url(),
                 headers: {}
             }
-            if (angular.isDefined(data)) {
+            if (!_.isUndefined(data)) {
                 if (action === 'GET') {
-                    if (angular.isObject(data) && Object.keys(data).length) {
+                    if (_.isObject(data) && Object.keys(data).length) {
                         prototype.url += prototype.url.includes('?') ? '&' : '?'
                         prototype.url += that.serialize(data)
                     }
@@ -212,7 +217,7 @@ export class Collection extends Stratus.Prototypes.EventManager {
 
             const queryHash = `${prototype.method}:${prototype.url}`
             const handler = (response: any) => {
-                if (response.status === 200 && angular.isObject(response.data)) {
+                if (response.status === 200 && _.isObject(response.data)) {
                     // TODO: Make this into an over-writable function
 
                     // Cache reference
@@ -278,7 +283,7 @@ export class Collection extends Stratus.Prototypes.EventManager {
                 handler(that.cache[queryHash])
                 return
             }
-            http(prototype)
+            $http(prototype)
                 .then(handler)
                 .catch((error: any) => {
                     // (/(.*)\sReceived/i).exec(error.message)[1]
@@ -294,8 +299,11 @@ export class Collection extends Stratus.Prototypes.EventManager {
         const that = this
         return that.sync(action, data || that.meta.get('api'), options).catch(
             (error: any) => {
-                mdToast.show(
-                    mdToast.simple()
+                if (!$mdToast) {
+                    return
+                }
+                $mdToast.show(
+                    $mdToast.simple()
                         .textContent('Failure to Fetch!')
                         .toastClass('errorMessage')
                         .position('top right')
@@ -308,13 +316,13 @@ export class Collection extends Stratus.Prototypes.EventManager {
 
     filter(query: string) {
         this.filtering = true
-        this.meta.set('api.q', angular.isDefined(query) ? query : '')
+        this.meta.set('api.q', !_.isUndefined(query) ? query : '')
         this.meta.set('api.p', 1)
         return this.fetch()
     }
 
     throttleFilter(query: string) {
-        this.meta.set('api.q', angular.isDefined(query) ? query : '')
+        this.meta.set('api.q', !_.isUndefined(query) ? query : '')
         const that = this
         return new Promise((resolve: any, reject: any) => {
             const request = that.throttle()
@@ -347,7 +355,7 @@ export class Collection extends Stratus.Prototypes.EventManager {
     }
 
     add(target: any, options: any) {
-        if (!angular.isObject(target)) {
+        if (!_.isObject(target)) {
             return
         }
         if (!options || typeof options !== 'object') {
@@ -364,7 +372,7 @@ export class Collection extends Stratus.Prototypes.EventManager {
         }
     }
 
-    remove(target: string) {
+    remove(target: Model) {
         this.models.splice(this.models.indexOf(target), 1)
         this.throttleTrigger('change')
         return this
@@ -379,7 +387,7 @@ export class Collection extends Stratus.Prototypes.EventManager {
     }
 
     exists(attribute: string) {
-        return !!_.reduce(this.pluck(attribute) || [], (memo: any, data: any) => memo || angular.isDefined(data))
+        return !!_.reduce(this.pluck(attribute) || [], (memo: any, data: any) => memo || !_.isUndefined(data))
     }
 }
 
@@ -390,13 +398,18 @@ export class Collection extends Stratus.Prototypes.EventManager {
 // RAJ Added $qProvide to handle unhandleExceptions in angular 1.6
 Stratus.Services.Collection = [
     '$provide',
-    ($provide: any) => {
+    ($provide: angular.auto.IProvideService) => {
         $provide.factory('Collection', [
             '$http',
             '$mdToast',
-            ($http: IHttpBackendService, $mdToast: angular.material.IToastService) => {
-                http = $http
-                mdToast = $mdToast
+            'Model',
+            (
+                $h: angular.IHttpService,
+                $m: angular.material.IToastService,
+                M: Model
+            ) => {
+                $http = $h
+                $mdToast = $m
                 return Collection
             }
         ])

@@ -2,9 +2,9 @@
 // ----------------
 
 // Runtime
-import * as _ from 'lodash'
-import * as Stratus from 'stratus'
-import 'angular'
+import _ from 'lodash'
+import angular from 'angular'
+import {Stratus} from '@stratusjs/runtime/stratus'
 
 // Services
 import {Model} from '@stratusjs/angularjs/services/model'
@@ -13,19 +13,29 @@ import {Collection} from '@stratusjs/angularjs/services/collection'
 // Stratus Dependencies
 import {sanitize} from '@stratusjs/core/conversion'
 import {isJSON, poll, ucfirst} from '@stratusjs/core/misc'
+import {getInjector} from '@stratusjs/angularjs/injector'
 
-let interpolate = (value: any, mustHaveExpression: any, trustedContext: any, allOrNothing: any) => {
-    // console.log('interpolate:', {
-    //     value,
-    //     mustHaveExpression,
-    //     trustedContext,
-    //     allOrNothing
-    // })
-    return (data: string) => {
-        console.error('$interpolate not loaded:', data)
-    }
+// Angular Dependency Injector
+// let injector = getInjector()
+
+// Angular Services
+// let $interpolate: angular.IInterpolateService = injector ? injector.get('$interpolate') : null
+let $interpolate: angular.IInterpolateService
+
+const serviceVerify = async () => {
+    return new Promise(async (resolve, reject) => {
+        if ($interpolate) {
+            resolve(true)
+            return
+        }
+        setTimeout(() => {
+            console.log('look for $interpolate service:', $interpolate)
+            serviceVerify().then(resolve)
+        }, 250)
+    })
 }
 
+// TODO: Move this to the Backend Package
 export class Registry {
     constructor() {
         // Scope Binding
@@ -37,7 +47,7 @@ export class Registry {
     // Inverse the parent and child objects the same way Doctrine does
     // TODO: PushState Handling like: #/media/p/2
     fetch($element: any, $scope: any) {
-        return new Promise((resolve: any, reject: any) => {
+        return new Promise(async (resolve, reject) => {
             if (typeof $element === 'string') {
                 $element = {
                     target: $element
@@ -81,13 +91,16 @@ export class Registry {
                 }
                 resolve(this.build(options, $scope))
             }
-            _.each(options, (element, key) => {
+            if (!$interpolate) {
+                const wait = await serviceVerify()
+            }
+            _.forEach(options, (element, key) => {
                 if (!element || typeof element !== 'string') {
                     completed++
                     verify()
                     return
                 }
-                const interpreter = interpolate(element, false, null, true)
+                const interpreter = $interpolate(element, false, null, true)
                 const initial = interpreter($scope.$parent)
                 if (typeof initial !== 'undefined') {
                     options[key] = initial
@@ -221,8 +234,12 @@ Stratus.Services.Registry = [
             '$interpolate',
             'Collection',
             'Model',
-            ($interpolate: any, C: Collection, M: Model) => {
-                interpolate = $interpolate
+            (
+                $i: angular.IInterpolateService,
+                C: Collection,
+                M: Model
+            ) => {
+                $interpolate = $i
                 return new Registry()
             }
         ])
